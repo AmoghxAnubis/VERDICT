@@ -38,6 +38,8 @@ ML, staking/slashing, ZK proofs, TEEs, AVS, and non-price resolution are outside
   is a configurable development policy, not a calibrated market safety threshold.
 - Replay: fixed fixture timestamps and request latencies; no wall-clock values or
   network calls enter normalized output. Query-time age still uses current time.
+  Each fixture is validated first, then committed atomically. A conflicting event
+  rolls back the entire replay import.
 
 Schema migrations precede API/worker startup. SQLite is the local fallback;
 PostgreSQL is the shared deployment store. No network ingestion runs on import.

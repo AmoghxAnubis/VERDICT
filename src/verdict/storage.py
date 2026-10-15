@@ -82,10 +82,14 @@ class ObservationStore:
                             )
                             session.flush()
                     except IntegrityError:
-                        existing = session.get(ObservationRow, observation.observation_id)
+                        existing = session.scalar(
+                            select(ObservationRow.payload).where(
+                                ObservationRow.id == observation.observation_id
+                            )
+                        )
                         if existing is None:
                             raise
-                        previous = Observation.model_validate_json(existing.payload)
+                        previous = Observation.model_validate_json(existing)
                         if (previous.value, previous.timestamp) != (
                             observation.value,
                             observation.timestamp,
