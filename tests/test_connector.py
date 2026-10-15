@@ -12,9 +12,7 @@ def test_public_endpoint_and_exact_normalization(observation):
 
     def handler(request):
         assert str(request.url) == "https://api.exchange.coinbase.com/products/ETH-USD/ticker"
-        return httpx.Response(
-            200, json={**observation.raw_payload, "time": event_time.isoformat()}
-        )
+        return httpx.Response(200, json={**observation.raw_payload, "time": event_time.isoformat()})
 
     async def run():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
