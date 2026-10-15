@@ -4,7 +4,6 @@ from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import FastAPI, HTTPException, Query
-from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
 
 from verdict import __version__
@@ -42,7 +41,9 @@ def create_app(settings: Settings | None = None, store: ObservationStore | None 
             store.check_ready()
         except SQLAlchemyError as error:
             logger.warning("storage_not_ready error_type=%s", type(error).__name__)
-            raise HTTPException(503, detail="storage not ready; apply database migrations") from None
+            raise HTTPException(
+                503, detail="storage not ready; apply database migrations"
+            ) from None
         return {"status": "ready"}
 
     @app.get("/v1/observations", response_model=list[ObservationResponse])
@@ -68,24 +69,29 @@ def create_app(settings: Settings | None = None, store: ObservationStore | None 
                 state = "clock_skew"
             else:
                 state = "fresh" if age <= settings.freshness_seconds else "stale"
-        return [{
-            "source": "coinbase",
-            "asset": "ETH-USD",
-            "dataset": dataset,
-            "observation_status": state,
-            "age_seconds": age,
-            "latest_timestamp": latest.timestamp if latest else None,
-            "trust_score": None,
-        }]
+        return [
+            {
+                "source": "coinbase",
+                "asset": "ETH-USD",
+                "dataset": dataset,
+                "observation_status": state,
+                "age_seconds": age,
+                "latest_timestamp": latest.timestamp if latest else None,
+                "trust_score": None,
+            }
+        ]
 
     @app.get("/v1/feed/{asset}")
     def feed(asset: Asset) -> dict:
-        raise HTTPException(503, detail={
-            "asset": asset,
-            "status": "unavailable",
-            "value": None,
-            "confidence": None,
-            "reason": "consensus_engine_not_implemented",
-        })
+        raise HTTPException(
+            503,
+            detail={
+                "asset": asset,
+                "status": "unavailable",
+                "value": None,
+                "confidence": None,
+                "reason": "consensus_engine_not_implemented",
+            },
+        )
 
     return app

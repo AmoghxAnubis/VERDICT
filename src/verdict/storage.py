@@ -76,7 +76,10 @@ class ObservationStore:
                 if existing is None:
                     raise
                 previous = Observation.model_validate_json(existing.payload)
-                if (previous.value, previous.timestamp) != (observation.value, observation.timestamp):
+                if (previous.value, previous.timestamp) != (
+                    observation.value,
+                    observation.timestamp,
+                ):
                     raise ObservationConflict("provider event changed price or timestamp") from None
                 return False
 
@@ -90,4 +93,6 @@ class ObservationStore:
             .limit(limit)
         )
         with self.session() as session:
-            return [Observation.model_validate_json(row.payload) for row in session.scalars(statement)]
+            return [
+                Observation.model_validate_json(row.payload) for row in session.scalars(statement)
+            ]

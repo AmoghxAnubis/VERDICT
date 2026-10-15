@@ -31,9 +31,7 @@ async def ingest_coinbase(
                 if once:
                     raise
                 failures += 1
-                delay = max(
-                    settings.poll_interval_seconds, min(60, 2 ** min(failures, 6))
-                )
+                delay = max(settings.poll_interval_seconds, min(60, 2 ** min(failures, 6)))
                 logger.warning(
                     "coinbase_fetch_failed error_type=%s retry_seconds=%s",
                     type(error).__name__,

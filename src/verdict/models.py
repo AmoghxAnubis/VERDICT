@@ -42,7 +42,13 @@ class Observation(BaseModel):
 
     @property
     def observation_id(self) -> str:
-        identity = [self.schema_version, self.dataset, self.source, self.asset, self.provider_event_id]
+        identity = [
+            self.schema_version,
+            self.dataset,
+            self.source,
+            self.asset,
+            self.provider_event_id,
+        ]
         return hashlib.sha256(json.dumps(identity, separators=(",", ":")).encode()).hexdigest()
 
     def clock_skew_seconds(self) -> float:
