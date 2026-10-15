@@ -3,18 +3,19 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
 from verdict import __version__
 from verdict.config import Settings, get_settings
-from verdict.models import Asset, Dataset, Observation
+from verdict.models import Asset, Dataset, ObservationData
 from verdict.storage import ObservationStore, build_engine
 
 logger = logging.getLogger(__name__)
 
 
-class ObservationResponse(Observation):
+class ObservationResponse(ObservationData):
     observation_id: str
 
 
@@ -30,6 +31,11 @@ def create_app(settings: Settings | None = None, store: ObservationStore | None 
             store.engine.dispose()
 
     app = FastAPI(title="VERDICT API", version=__version__, lifespan=lifespan)
+
+    @app.exception_handler(SQLAlchemyError)
+    async def storage_error(request: Request, error: SQLAlchemyError) -> JSONResponse:
+        logger.warning("storage_unavailable error_type=%s", type(error).__name__)
+        return JSONResponse(status_code=503, content={"detail": "storage unavailable"})
 
     @app.get("/health/live")
     def liveness() -> dict:

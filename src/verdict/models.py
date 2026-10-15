@@ -11,7 +11,7 @@ Asset = Literal["ETH-USD"]
 PositiveDecimal = Annotated[Decimal, Field(gt=0, max_digits=38, decimal_places=18)]
 
 
-class Observation(BaseModel):
+class ObservationData(BaseModel):
     """One observation. Decimal values serialize as strings, never binary floats."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -40,6 +40,8 @@ class Observation(BaseModel):
     def normalize_utc(cls, value: datetime) -> datetime:
         return value.astimezone(UTC)
 
+
+class Observation(ObservationData):
     @property
     def observation_id(self) -> str:
         identity = [

@@ -8,16 +8,20 @@ from verdict.connectors.coinbase import CoinbaseConnector, normalize_ticker
 
 
 def test_public_endpoint_and_exact_normalization(observation):
+    event_time = datetime.now(UTC) - timedelta(seconds=1)
+
     def handler(request):
         assert str(request.url) == "https://api.exchange.coinbase.com/products/ETH-USD/ticker"
-        return httpx.Response(200, json=observation.raw_payload)
+        return httpx.Response(
+            200, json={**observation.raw_payload, "time": event_time.isoformat()}
+        )
 
     async def run():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
             result = await CoinbaseConnector(client).fetch()
             assert result.value == observation.value
             assert result.dataset == "live"
-            assert result.timestamp == observation.timestamp
+            assert result.timestamp == event_time
             assert result.latency_ms >= 0
 
     asyncio.run(run())

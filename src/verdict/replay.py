@@ -43,7 +43,7 @@ def load_observations(path: Path) -> list[Observation]:
 def replay(path: Path, store: ObservationStore) -> dict:
     observations = load_observations(path)
     # Normalize the whole fixture before writing anything.
-    inserted = sum(store.add(observation) for observation in observations)
+    inserted = store.add_many(observations)
     canonical = json.dumps(
         [observation.model_dump(mode="json") for observation in observations],
         sort_keys=True,

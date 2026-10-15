@@ -16,6 +16,9 @@ def test_readiness_reports_unmigrated_storage(tmp_path):
         response = client.get("/health/ready")
         assert response.status_code == 503
         assert "migrations" in response.json()["detail"]
+        unavailable = client.get("/v1/observations")
+        assert unavailable.status_code == 503
+        assert unavailable.json() == {"detail": "storage unavailable"}
 
 
 def test_api_preserves_decimal_precision_and_replay_isolation(store, observation):

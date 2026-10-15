@@ -1,4 +1,4 @@
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
@@ -37,7 +37,11 @@ def build_engine(database_url: str) -> Engine:
     url = make_url(database_url)
     if url.get_backend_name() == "sqlite" and url.database not in (None, "", ":memory:"):
         Path(url.database).parent.mkdir(parents=True, exist_ok=True)
-    connect_args = {"check_same_thread": False, "timeout": 30} if url.drivername == "sqlite" else {}
+    connect_args = (
+        {"check_same_thread": False, "timeout": 30, "autocommit": False}
+        if url.get_backend_name() == "sqlite"
+        else {}
+    )
     return create_engine(database_url, connect_args=connect_args, pool_pre_ping=True)
 
 
@@ -56,32 +60,42 @@ class ObservationStore:
 
     def add(self, observation: Observation) -> bool:
         """Persist the first receipt of an event. Repeated polling is idempotent."""
+        return self.add_many([observation]) == 1
+
+    def add_many(self, observations: Iterable[Observation]) -> int:
+        """Atomically insert a batch, preserving first receipts and rejecting conflicts."""
+        inserted = 0
         with self.session() as session:
-            session.add(
-                ObservationRow(
-                    id=observation.observation_id,
-                    dataset=observation.dataset,
-                    source=observation.source,
-                    asset=observation.asset,
-                    timestamp=observation.timestamp,
-                    payload=observation.model_dump_json(),
-                )
-            )
-            try:
-                session.commit()
-                return True
-            except IntegrityError:
-                session.rollback()
-                existing = session.get(ObservationRow, observation.observation_id)
-                if existing is None:
-                    raise
-                previous = Observation.model_validate_json(existing.payload)
-                if (previous.value, previous.timestamp) != (
-                    observation.value,
-                    observation.timestamp,
-                ):
-                    raise ObservationConflict("provider event changed price or timestamp") from None
-                return False
+            with session.begin():
+                for observation in observations:
+                    try:
+                        with session.begin_nested():
+                            session.add(
+                                ObservationRow(
+                                    id=observation.observation_id,
+                                    dataset=observation.dataset,
+                                    source=observation.source,
+                                    asset=observation.asset,
+                                    timestamp=observation.timestamp,
+                                    payload=observation.model_dump_json(),
+                                )
+                            )
+                            session.flush()
+                    except IntegrityError:
+                        existing = session.get(ObservationRow, observation.observation_id)
+                        if existing is None:
+                            raise
+                        previous = Observation.model_validate_json(existing.payload)
+                        if (previous.value, previous.timestamp) != (
+                            observation.value,
+                            observation.timestamp,
+                        ):
+                            raise ObservationConflict(
+                                "provider event changed price or timestamp"
+                            ) from None
+                    else:
+                        inserted += 1
+        return inserted
 
     def list(
         self, *, dataset: str = "live", asset: str = "ETH-USD", limit: int = 100

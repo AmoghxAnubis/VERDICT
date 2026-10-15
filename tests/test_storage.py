@@ -84,3 +84,12 @@ def test_invalid_replay_cannot_partially_write(store, tmp_path):
     with pytest.raises(ValueError):
         replay(path, store)
     assert store.list(dataset="replay:baseline") == []
+
+
+def test_conflicting_batch_rolls_back_new_events(store, observation):
+    store.add(observation)
+    new_event = observation.model_copy(update={"provider_event_id": "new-event"})
+    conflict = observation.model_copy(update={"value": Decimal("5200")})
+    with pytest.raises(ObservationConflict):
+        store.add_many([new_event, conflict])
+    assert store.list(dataset=observation.dataset) == [observation]
