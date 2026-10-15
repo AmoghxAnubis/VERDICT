@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "name": "baseline",
+  "description": "Three trades, one repeated poll, and an out-of-order arrival.",
+  "events": [
+    {"received_at": "2026-10-16T00:00:00.100Z", "latency_ms": 40, "payload": {"trade_id": 1001, "price": "3843.010000000000000001", "time": "2026-10-16T00:00:00Z", "bid": "3843.00", "ask": "3843.02", "volume": "1200.5"}},
+    {"received_at": "2026-10-16T00:00:00.200Z", "latency_ms": 41, "payload": {"trade_id": 1001, "price": "3843.010000000000000001", "time": "2026-10-16T00:00:00Z", "bid": "3843.00", "ask": "3843.02", "volume": "1200.5"}},
+    {"received_at": "2026-10-16T00:00:02.100Z", "latency_ms": 42, "payload": {"trade_id": 1003, "price": "3843.20", "time": "2026-10-16T00:00:02Z", "bid": "3843.19", "ask": "3843.21", "volume": "1201"}},
+    {"received_at": "2026-10-16T00:00:03.100Z", "latency_ms": 43, "payload": {"trade_id": 1002, "price": "3843.10", "time": "2026-10-16T00:00:01Z", "bid": "3843.09", "ask": "3843.11", "volume": "1200.8"}}
+  ]
+}

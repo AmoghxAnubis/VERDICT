@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: verdict
+      POSTGRES_PASSWORD: verdict
+      POSTGRES_DB: verdict
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - verdict-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U verdict -d verdict"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  api:
+    build: .
+    environment:
+      VERDICT_DATABASE_URL: postgresql+psycopg://verdict:verdict@db:5432/verdict
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+  worker:
+    build: .
+    command: ["verdict", "ingest"]
+    environment:
+      VERDICT_DATABASE_URL: postgresql+psycopg://verdict:verdict@db:5432/verdict
+    depends_on:
+      db:
+        condition: service_healthy
+volumes:
+  verdict-db:

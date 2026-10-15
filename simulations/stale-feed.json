@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "name": "stale-feed",
+  "description": "An old trade repeatedly delivered five minutes later; receipt is not freshness.",
+  "events": [
+    {"received_at": "2026-10-16T00:05:00Z", "latency_ms": 40, "payload": {"trade_id": 3001, "price": "3843.01", "time": "2026-10-16T00:00:00Z"}},
+    {"received_at": "2026-10-16T00:05:02Z", "latency_ms": 40, "payload": {"trade_id": 3001, "price": "3843.01", "time": "2026-10-16T00:00:00Z"}}
+  ]
+}
