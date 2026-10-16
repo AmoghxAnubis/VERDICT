@@ -20,7 +20,7 @@ def normalize_trades(
     payload: dict, *, received_at: datetime, latency_ms: float, dataset: Dataset = "live"
 ) -> Observation:
     # The adapter, not provider-supplied data, pins the requested instrument.
-    if payload.get("symbol") != "ETHUSD":
+    if not isinstance(payload, dict) or payload.get("symbol") != "ETHUSD":
         raise ValueError("expected Binance.US ETHUSD; stablecoin pairs are not USD")
     trades = payload.get("trades")
     if not isinstance(trades, list) or not trades or any(not isinstance(t, dict) for t in trades):

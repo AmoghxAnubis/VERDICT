@@ -20,6 +20,7 @@ class ObservationRow(Base):
     __tablename__ = "observations"
     __table_args__ = (
         Index("ix_observation_lookup", "dataset", "asset", "source", "timestamp", "id"),
+        Index("ix_observation_cutoff", "dataset", "asset", "received_at", "timestamp"),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)

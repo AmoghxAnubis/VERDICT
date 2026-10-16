@@ -12,7 +12,7 @@ BASE_URL = "https://api.kraken.com"
 def normalize_trades(
     payload: dict, *, received_at: datetime, latency_ms: float, dataset: Dataset = "live"
 ) -> Observation:
-    if payload.get("error") != []:
+    if not isinstance(payload, dict) or payload.get("error") != []:
         raise ValueError("Kraken returned a provider error")
     result = payload.get("result")
     if not isinstance(result, dict) or set(result) != {"XETHZUSD", "last"}:

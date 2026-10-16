@@ -26,6 +26,8 @@ def normalize_ticker(
     asset: Literal["ETH-USD"] = "ETH-USD",
 ) -> Observation:
     # Validate through Observation before price conversion to reject binary floats.
+    if not isinstance(payload, dict):
+        raise ValueError("expected a Coinbase ticker object")
     if isinstance(payload.get("price"), (float, bool)):
         raise ValueError("Coinbase price must be a decimal string")
     ticker = CoinbaseTicker.model_validate(payload)
