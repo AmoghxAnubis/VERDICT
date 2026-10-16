@@ -29,7 +29,7 @@ def test_upgrade_backfills_receipt_time_without_changing_existing_evidence(
                     "dataset": observation.dataset,
                     "source": observation.source,
                     "asset": observation.asset,
-                    "timestamp": observation.timestamp.replace(tzinfo=None),
+                    "timestamp": observation.timestamp.strftime("%Y-%m-%d %H:%M:%S.%f"),
                     "payload": observation.model_dump_json(),
                 },
             )

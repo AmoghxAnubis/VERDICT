@@ -20,7 +20,9 @@ ML, staking/slashing, ZK proofs, TEEs, AVS, and non-price resolution are outside
   assets require explicit conversion observations and provenance before inclusion.
 - Dataset: `live` or `replay:<scenario>`. Live is the API default; replay cannot
   write into live. Scenario names are lowercase letters/numbers, `_`, or `-`.
-- Provider: Coinbase Exchange public ETH-USD ticker, last trade price.
+- Providers: Coinbase Exchange public ETH-USD ticker, Kraken XETHZUSD recent trades,
+  and Binance.US ETHUSD recent trades. All adapters report the last trade price.
+  They do not establish independent upstream domains by provider count alone.
 - Value: positive finite decimal, up to 38 digits and 18 fractional places.
   Binary floating-point prices are rejected; JSON output uses decimal strings.
 - Time: provider event time and receipt time are both timezone-aware, normalized
@@ -45,6 +47,11 @@ Schema migrations precede API/worker startup. SQLite is the local fallback;
 PostgreSQL is the shared deployment store. No network ingestion runs on import.
 
 ## Aggregation contract (next milestone)
+
+The statistical subset is implemented separately as described in
+[the statistical policy](STATISTICAL_ENGINE.md). It does not enable consensus,
+confidence, or on-chain publication. Diagnostic rounds are retained with fixed
+cutoffs, configuration hashes, input IDs, and per-source explanations.
 
 An aggregation round must fix its cutoff time, eligible observation window,
 source configuration, dependency graph version, and algorithm version. One eligible

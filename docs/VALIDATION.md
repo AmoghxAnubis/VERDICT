@@ -25,3 +25,22 @@ to run the storage contract against PostgreSQL; CI has not been executed here.
 
 These checks establish the observation foundation. Anomaly detection, confidence,
 consensus, the dashboard, cryptographic proofs, and contracts are later milestones.
+
+# Exchange and statistics slice
+
+- Ruff lint and formatting checks plus 88 passing local tests; the optional
+  PostgreSQL test remains skipped without its database URL.
+- Populated SQLite database upgraded from 0001 to 0002, retaining existing evidence
+  and backfilling receipt timestamps; fresh-schema/model agreement also checked.
+- Public Coinbase, Kraken, and Binance.US requests each returned HTTP 200 and
+  inserted live observations through independent workers.
+- A fixed-cutoff live round correctly excluded Binance.US's roughly 230-second-old
+  trade and reported insufficient data despite successful HTTP responses.
+- Synthetic healthy, isolated-outlier, coordinated market-jump, and provider-outage
+  fixtures are checked through real adapters, replay, snapshot storage, and analysis.
+- Immutable round storage, dataset-scoped API retrieval, receipt-time boundaries,
+  coverage-aware TWAP, zero MAD, retries, and failure/recovery counters are covered.
+
+Docker/PostgreSQL runtime and CI execution remain unverified locally. Streaming,
+oracle/DEX adapters, Redis recovery, held-out historical validation, trust,
+dependency-aware consensus, and confidence remain in the roadmap.

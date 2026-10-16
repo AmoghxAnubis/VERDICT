@@ -14,16 +14,23 @@
 ## Batch 2: ingestion coverage and statistical analysis
 
 - [ ] Add Coinbase streaming with reconnect and REST gap recovery.
-- [ ] Add Kraken and Binance adapters; verify regional/provider availability.
+- [x] Add Kraken and Binance.US direct ETH/USD adapters; verify provider availability.
 - [ ] Add Chainlink/Pyth reads and one well-defined Uniswap pool adapter.
 - [ ] Preserve chain, block/hash/finality, pair conversion, and lineage metadata.
-- [ ] Add persisted connector health, received/error counts, and outage tracking.
+- [x] Add persisted connector health, received/error counts, and consecutive failures.
 - [ ] Add Redis Streams with idempotent consumers and pending-message recovery.
-- [ ] Define synchronized round cutoffs and observation windows.
-- [ ] Implement median, MAD/zero-MAD handling, TWAP, volatility, and velocity.
-- [ ] Extend replay to multi-provider historical and adversarial cases.
+- [x] Define synchronized round cutoffs and observation windows, including receipt-time filtering.
+- [x] Implement median, MAD/zero-MAD handling, coverage-aware TWAP, RMS returns, and velocity.
+- [x] Extend replay to multi-provider synthetic/adversarial cases and immutable diagnostic rounds.
+- [ ] Validate against held-out historical data and market regimes.
 
 Gate: comparable observations from six providers; explainable anomaly decisions.
+
+The exchange/statistics slice is implemented. Six-provider coverage, streaming,
+chain metadata, Redis recovery, and historical calibration remain open. Binance.US
+is a distinct USD venue, not an implicit conversion of Binance ETH/USDT. A live
+check found its latest trade stale despite HTTP 200; the engine correctly withheld
+a three-source baseline instead of relaxing freshness requirements.
 
 ## Batch 3: dependencies, trust, consensus, confidence
 
