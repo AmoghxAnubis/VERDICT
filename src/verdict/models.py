@@ -61,6 +61,8 @@ class ObservationData(BaseModel):
     source: Source = "coinbase"
     source_type: Literal["exchange", "oracle", "dex"] = "exchange"
     provider_event_id: str = Field(min_length=1, max_length=128)
+    event_sequence: int = Field(default=0, ge=0, le=9223372036854775807, strict=True,
+                                exclude_if=lambda value: value == 0)
     value: PositiveDecimal
     timestamp: AwareDatetime
     received_at: AwareDatetime
