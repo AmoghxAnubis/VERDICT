@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "name": "single-outlier",
+  "description": "One source reports +35%; same-round extreme-deviation diagnostic at 00:00:10Z.",
+  "events": [
+    {"source": "coinbase", "received_at": "2026-10-16T00:00:00.100Z", "latency_ms": 40, "payload": {"trade_id": 201, "price": "100", "time": "2026-10-16T00:00:00Z"}},
+    {"source": "kraken", "received_at": "2026-10-16T00:00:00.100Z", "latency_ms": 40, "payload": {"error": [], "result": {"XETHZUSD": [["100", "1", "1792108800", "b", "m", "", 201]], "last": "cursor"}}},
+    {"source": "binance_us", "received_at": "2026-10-16T00:00:00.100Z", "latency_ms": 40, "payload": {"symbol": "ETHUSD", "trades": [{"id": 201, "price": "135", "time": 1792108800000}]}}
+  ]
+}

@@ -16,7 +16,7 @@ def evaluate(rows, at=10, policy=None):
 def test_healthy_three_source_round_has_explanations(market_observation):
     rows = [
         market_observation(source, price)
-        for source, price in zip(SOURCES, ["100", "100.1", "99.9"])
+        for source, price in zip(SOURCES, ["100", "100.1", "99.9"], strict=True)
     ]
     report = evaluate(rows)
     assert report.status == "analyzed"
@@ -29,7 +29,8 @@ def test_healthy_three_source_round_has_explanations(market_observation):
 
 def test_zero_mad_still_rejects_extreme_source(market_observation):
     rows = [
-        market_observation(source, price) for source, price in zip(SOURCES, ["100", "100", "135"])
+        market_observation(source, price)
+        for source, price in zip(SOURCES, ["100", "100", "135"], strict=True)
     ]
     report = evaluate(rows)
     assert report.mad == 0
@@ -42,7 +43,7 @@ def test_zero_mad_still_rejects_extreme_source(market_observation):
 def test_zero_mad_ignores_small_price_tick(market_observation):
     rows = [
         market_observation(source, price)
-        for source, price in zip(SOURCES, ["100", "100", "100.01"])
+        for source, price in zip(SOURCES, ["100", "100", "100.01"], strict=True)
     ]
     assert evaluate(rows).status == "analyzed"
 

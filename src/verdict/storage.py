@@ -207,7 +207,9 @@ class ObservationStore:
             rows = session.execute(select(ConnectorHealthRow.__table__)).mappings()
             return {
                 row["source"]: {
-                    key: value.replace(tzinfo=UTC) if isinstance(value, datetime) else value
+                    key: (value.astimezone(UTC) if value.tzinfo else value.replace(tzinfo=UTC))
+                    if isinstance(value, datetime)
+                    else value
                     for key, value in row.items()
                 }
                 for row in rows

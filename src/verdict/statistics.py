@@ -4,6 +4,7 @@ import hashlib
 import json
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal, localcontext
+from itertools import pairwise
 from statistics import median
 from typing import Literal
 
@@ -91,7 +92,7 @@ def history_metrics(rows: list[Observation], cutoff: datetime, policy: AnalysisP
             coverage += duration
     returns = []
     velocity = None
-    for previous, current in zip(rows, rows[1:]):
+    for previous, current in pairwise(rows):
         gap = seconds(current.timestamp - previous.timestamp)
         if 0 < gap <= policy.freshness_seconds and current.timestamp >= start:
             change = (current.value / previous.value - 1) * BPS
