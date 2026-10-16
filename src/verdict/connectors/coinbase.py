@@ -5,6 +5,7 @@ from typing import Literal
 import httpx
 from pydantic import AwareDatetime, BaseModel, Field
 
+from verdict.connectors.common import check_clock
 from verdict.models import Dataset, Observation, PositiveDecimal
 
 BASE_URL = "https://api.exchange.coinbase.com"
@@ -54,6 +55,4 @@ class CoinbaseConnector:
         observation = normalize_ticker(
             response.json(), received_at=received_at, latency_ms=elapsed_ms
         )
-        if observation.clock_skew_seconds() > self.max_future_skew_seconds:
-            raise ValueError("provider timestamp exceeds permitted future clock skew")
-        return observation
+        return check_clock(observation, self.max_future_skew_seconds)

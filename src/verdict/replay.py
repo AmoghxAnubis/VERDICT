@@ -5,13 +5,14 @@ from typing import Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
-from verdict.connectors.coinbase import normalize_ticker
-from verdict.models import Dataset, Observation
+from verdict.connectors.registry import NORMALIZERS
+from verdict.models import Dataset, Observation, Source
 from verdict.storage import ObservationStore
 
 
 class ReplayEvent(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    source: Source = "coinbase"
     received_at: AwareDatetime
     latency_ms: float = Field(ge=0, allow_inf_nan=False)
     payload: dict
@@ -30,7 +31,7 @@ def load_observations(path: Path) -> list[Observation]:
     # Simulation namespace is assigned here; the fixture cannot select live storage.
     dataset: Dataset = f"replay:{scenario.name}"
     return [
-        normalize_ticker(
+        NORMALIZERS[event.source](
             event.payload,
             received_at=event.received_at,
             latency_ms=event.latency_ms,

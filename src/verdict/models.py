@@ -8,6 +8,8 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validato
 
 Dataset = Annotated[str, Field(pattern=r"^(live|replay:[a-z0-9][a-z0-9_-]{0,63})$")]
 Asset = Literal["ETH-USD"]
+Source = Literal["coinbase", "kraken", "binance_us"]
+SOURCES: tuple[Source, ...] = ("coinbase", "kraken", "binance_us")
 PositiveDecimal = Annotated[Decimal, Field(gt=0, max_digits=38, decimal_places=18)]
 
 
@@ -19,7 +21,7 @@ class ObservationData(BaseModel):
     schema_version: Literal[1] = 1
     dataset: Dataset = "live"
     asset: Asset = "ETH-USD"
-    source: Literal["coinbase"] = "coinbase"
+    source: Source = "coinbase"
     source_type: Literal["exchange"] = "exchange"
     provider_event_id: str = Field(min_length=1, max_length=128)
     value: PositiveDecimal
