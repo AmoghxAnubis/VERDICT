@@ -8,11 +8,11 @@ from pathlib import Path
 import uvicorn
 from alembic import command
 from alembic.config import Config
+from pydantic import TypeAdapter
 
 from verdict.config import get_settings
 from verdict.ingestion import ingest_all, ingest_source
 from verdict.models import SOURCES, Dataset
-from pydantic import TypeAdapter
 from verdict.replay import replay
 from verdict.statistics import AnalysisPolicy, build_report
 from verdict.storage import ObservationStore, build_engine
@@ -67,8 +67,16 @@ def main() -> None:
             if dataset.startswith("replay:") and args.at is None:
                 parser.error("replay analysis requires --at for a reproducible cutoff")
             cutoff = datetime.fromisoformat(args.at) if args.at else datetime.now(UTC)
-            report = build_report(store, dataset=dataset, cutoff=cutoff,
-                                  policy=AnalysisPolicy(history_seconds=args.window))
+            report = build_report(
+                store,
+                dataset=dataset,
+                cutoff=cutoff,
+                policy=AnalysisPolicy(
+                    history_seconds=args.window,
+                    freshness_seconds=settings.freshness_seconds,
+                    max_future_skew_seconds=settings.max_future_skew_seconds,
+                ),
+            )
             store.save_round(report)
             print(report.model_dump_json(indent=2))
     finally:

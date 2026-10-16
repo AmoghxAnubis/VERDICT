@@ -50,9 +50,14 @@ async def ingest_source(
                     store.record_attempt, source, observation=observation
                 )
             except (httpx.HTTPError, ValueError) as error:
-                status = error.response.status_code if isinstance(error, httpx.HTTPStatusError) else None
+                status = (
+                    error.response.status_code if isinstance(error, httpx.HTTPStatusError) else None
+                )
                 await asyncio.to_thread(
-                    store.record_attempt, source, error_type=type(error).__name__, http_status=status
+                    store.record_attempt,
+                    source,
+                    error_type=type(error).__name__,
+                    http_status=status,
                 )
                 if once:
                     raise
@@ -60,14 +65,19 @@ async def ingest_source(
                 delay = retry_delay(error, failures, settings.poll_interval_seconds)
                 logger.warning(
                     "provider_fetch_failed source=%s error_type=%s http_status=%s retry_seconds=%s",
-                    source, type(error).__name__, status, delay,
+                    source,
+                    type(error).__name__,
+                    status,
+                    delay,
                 )
                 await sleep(delay)
                 continue
             failures = 0
             logger.info(
                 "observation source=%s event=%s inserted=%s",
-                source, observation.provider_event_id, inserted,
+                source,
+                observation.provider_event_id,
+                inserted,
             )
             if once:
                 return {"source": source, "status": "ok", "inserted": inserted}
@@ -75,13 +85,18 @@ async def ingest_source(
 
 
 async def ingest_coinbase(
-    store: ObservationStore, settings: Settings, *, once: bool = False,
+    store: ObservationStore,
+    settings: Settings,
+    *,
+    once: bool = False,
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
 ) -> None:
     await ingest_source("coinbase", store, settings, once=once, sleep=sleep)
 
 
-async def ingest_all(store: ObservationStore, settings: Settings, *, once: bool = False) -> list[dict]:
+async def ingest_all(
+    store: ObservationStore, settings: Settings, *, once: bool = False
+) -> list[dict]:
     if not once:
         await asyncio.gather(*(ingest_source(source, store, settings) for source in SOURCES))
         return []
@@ -91,6 +106,7 @@ async def ingest_all(store: ObservationStore, settings: Settings, *, once: bool 
     )
     return [
         {"source": source, "status": "error", "error_type": type(result).__name__}
-        if isinstance(result, Exception) else result
+        if isinstance(result, Exception)
+        else result
         for source, result in zip(SOURCES, results, strict=True)
     ]

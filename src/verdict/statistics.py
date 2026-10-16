@@ -104,12 +104,16 @@ def history_metrics(rows: list[Observation], cutoff: datetime, policy: AnalysisP
         "twap_coverage_fraction": coverage / policy.history_seconds,
         "velocity_bps_per_second": velocity,
         "rms_return_bps": (sum(value * value for value in returns) / len(returns)).sqrt()
-        if returns else None,
+        if returns
+        else None,
     }
 
 
 def analyze(
-    observations: list[Observation], *, cutoff: datetime, dataset: str,
+    observations: list[Observation],
+    *,
+    cutoff: datetime,
+    dataset: str,
     policy: AnalysisPolicy | None = None,
 ) -> AnalysisReport:
     policy = policy or AnalysisPolicy()
@@ -118,10 +122,19 @@ def analyze(
     if len(set(policy.sources)) != len(policy.sources):
         raise ValueError("analysis sources must be unique")
     cutoff = cutoff.astimezone(UTC)
-    rows = sorted((row for row in observations if (
-        row.dataset == dataset and row.timestamp <= cutoff and row.received_at <= cutoff
-        and row.source in policy.sources
-    )), key=lambda row: (row.source, row.timestamp, row.observation_id))
+    rows = sorted(
+        (
+            row
+            for row in observations
+            if (
+                row.dataset == dataset
+                and row.timestamp <= cutoff
+                and row.received_at <= cutoff
+                and row.source in policy.sources
+            )
+        ),
+        key=lambda row: (row.source, row.timestamp, row.observation_id),
+    )
     if len(rows) > policy.max_observations:
         raise ValueError("analysis observation limit exceeded")
     with localcontext() as context:
@@ -145,10 +158,15 @@ def analyze(
                     decision.exclusion_reasons.append("clock_skew")
                 if age > policy.freshness_seconds:
                     decision.exclusion_reasons.append("stale")
-                metrics = history_metrics([
-                    row for row in history
-                    if row.clock_skew_seconds() <= policy.max_future_skew_seconds
-                ], cutoff, policy)
+                metrics = history_metrics(
+                    [
+                        row
+                        for row in history
+                        if row.clock_skew_seconds() <= policy.max_future_skew_seconds
+                    ],
+                    cutoff,
+                    policy,
+                )
                 for key, value in metrics.items():
                     setattr(decision, key, value)
                 velocity = decision.velocity_bps_per_second
@@ -161,8 +179,9 @@ def analyze(
         if len(fresh) >= policy.minimum_sources:
             reference = median([decision.value for decision in fresh])
             mad = median([abs(decision.value - reference) for decision in fresh])
-            threshold = max(mad * policy.mad_multiplier,
-                            reference * policy.minimum_deviation_bps / BPS)
+            threshold = max(
+                mad * policy.mad_multiplier, reference * policy.minimum_deviation_bps / BPS
+            )
             for decision in fresh:
                 difference = abs(decision.value - reference)
                 decision.deviation_bps = difference / reference * BPS
@@ -173,11 +192,17 @@ def analyze(
                 decision.exclusion_reasons.append("insufficient_sources")
         inliers = sum(not decision.exclusion_reasons for decision in decisions)
         data = AnalysisData(
-            dataset=dataset, cutoff=cutoff, policy=policy,
+            dataset=dataset,
+            cutoff=cutoff,
+            policy=policy,
             policy_sha256=digest(policy.model_dump(mode="json")),
             status="analyzed" if inliers >= policy.minimum_sources else "insufficient_data",
-            median_reference=reference, mad=mad, outlier_threshold=threshold,
-            fresh_sources=len(fresh), inlier_sources=inliers, sources=decisions,
+            median_reference=reference,
+            mad=mad,
+            outlier_threshold=threshold,
+            fresh_sources=len(fresh),
+            inlier_sources=inliers,
+            sources=decisions,
             input_observation_ids=[row.observation_id for row in rows],
         )
         return AnalysisReport(**data.model_dump(), round_id=digest(data.model_dump(mode="json")))
@@ -188,7 +213,10 @@ def build_report(
 ) -> AnalysisReport:
     policy = policy or AnalysisPolicy()
     observations = store.snapshot(
-        dataset=dataset, cutoff=cutoff, history_seconds=policy.history_seconds,
-        freshness_seconds=policy.freshness_seconds, max_observations=policy.max_observations,
+        dataset=dataset,
+        cutoff=cutoff,
+        history_seconds=policy.history_seconds,
+        freshness_seconds=policy.freshness_seconds,
+        max_observations=policy.max_observations,
     )
     return analyze(observations, dataset=dataset, cutoff=cutoff, policy=policy)

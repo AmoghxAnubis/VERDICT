@@ -15,18 +15,24 @@ depends_on = None
 def upgrade() -> None:
     op.add_column("observations", sa.Column("received_at", sa.DateTime(timezone=True)))
     observations = sa.table(
-        "observations", sa.column("id", sa.String), sa.column("payload", sa.Text),
+        "observations",
+        sa.column("id", sa.String),
+        sa.column("payload", sa.Text),
         sa.column("received_at", sa.DateTime(timezone=True)),
     )
     connection = op.get_bind()
     for row in connection.execute(sa.select(observations.c.id, observations.c.payload)):
-        received = datetime.fromisoformat(json.loads(row.payload)["received_at"].replace("Z", "+00:00"))
-        connection.execute(observations.update().where(observations.c.id == row.id).values(
-            received_at=received
-        ))
+        received = datetime.fromisoformat(
+            json.loads(row.payload)["received_at"].replace("Z", "+00:00")
+        )
+        connection.execute(
+            observations.update().where(observations.c.id == row.id).values(received_at=received)
+        )
     with op.batch_alter_table("observations") as batch:
         batch.alter_column("received_at", existing_type=sa.DateTime(timezone=True), nullable=False)
-    op.create_index("ix_observation_cutoff", "observations", ["dataset", "asset", "received_at", "timestamp"])
+    op.create_index(
+        "ix_observation_cutoff", "observations", ["dataset", "asset", "received_at", "timestamp"]
+    )
     op.create_table(
         "connector_health",
         sa.Column("source", sa.String(64), primary_key=True),

@@ -5,12 +5,12 @@ from typing import Annotated
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
+from pydantic import AwareDatetime
 from sqlalchemy.exc import SQLAlchemyError
 
 from verdict import __version__
 from verdict.config import Settings, get_settings
 from verdict.models import SOURCES, Asset, Dataset, ObservationData, Source
-from pydantic import AwareDatetime
 from verdict.statistics import AnalysisPolicy, AnalysisReport, build_report
 from verdict.storage import ObservationStore, build_engine
 
@@ -81,28 +81,40 @@ def create_app(settings: Settings | None = None, store: ObservationStore | None 
                     state = "clock_skew"
                 else:
                     state = "fresh" if age <= settings.freshness_seconds else "stale"
-            results.append({
-                "source": source,
-                "asset": "ETH-USD",
-                "dataset": dataset,
-                "observation_status": state,
-                "age_seconds": age,
-                "latest_timestamp": latest.timestamp if latest else None,
-                "trust_score": None,
-                "connector_health": health.get(source),
-            })
+            results.append(
+                {
+                    "source": source,
+                    "asset": "ETH-USD",
+                    "dataset": dataset,
+                    "observation_status": state,
+                    "age_seconds": age,
+                    "latest_timestamp": latest.timestamp if latest else None,
+                    "trust_score": None,
+                    "connector_health": health.get(source),
+                }
+            )
         return results
 
     @app.get("/v1/analysis/{asset}", response_model=AnalysisReport)
     def analysis(
-        asset: Asset, dataset: Dataset = "live", at: AwareDatetime | None = None,
+        asset: Asset,
+        dataset: Dataset = "live",
+        at: AwareDatetime | None = None,
         window: Annotated[int, Query(ge=10, le=3600)] = 300,
     ) -> AnalysisReport:
         if dataset.startswith("replay:") and at is None:
             raise HTTPException(422, detail="replay analysis requires an explicit at cutoff")
         try:
-            return build_report(store, dataset=dataset, cutoff=at or datetime.now(UTC),
-                                policy=AnalysisPolicy(history_seconds=window))
+            return build_report(
+                store,
+                dataset=dataset,
+                cutoff=at or datetime.now(UTC),
+                policy=AnalysisPolicy(
+                    history_seconds=window,
+                    freshness_seconds=settings.freshness_seconds,
+                    max_future_skew_seconds=settings.max_future_skew_seconds,
+                ),
+            )
         except ValueError as error:
             raise HTTPException(422, detail=str(error)) from None
 

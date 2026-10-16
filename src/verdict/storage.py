@@ -1,10 +1,21 @@
+import json
 from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
-import json
 from pathlib import Path
 
-from sqlalchemy import DateTime, Index, Integer, String, Text, create_engine, func, or_, select, text
+from sqlalchemy import (
+    DateTime,
+    Index,
+    Integer,
+    String,
+    Text,
+    create_engine,
+    func,
+    or_,
+    select,
+    text,
+)
 from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
@@ -110,7 +121,9 @@ class ObservationStore:
                 session.flush()
         except IntegrityError:
             existing = session.scalar(
-                select(ObservationRow.payload).where(ObservationRow.id == observation.observation_id)
+                select(ObservationRow.payload).where(
+                    ObservationRow.id == observation.observation_id
+                )
             )
             if existing is None:
                 raise
@@ -141,7 +154,9 @@ class ObservationStore:
         error_type: str | None = None,
         http_status: int | None = None,
     ) -> bool:
-        if observation is not None and (observation.source != source or observation.dataset != "live"):
+        if observation is not None and (
+            observation.source != source or observation.dataset != "live"
+        ):
             raise ValueError("connector health only accepts matching live observations")
         if (observation is None) == (error_type is None):
             raise ValueError("an attempt must contain either an observation or an error")
@@ -154,10 +169,17 @@ class ObservationStore:
         with self.session() as session, session.begin():
             inserted = self._insert(session, observation) if observation else False
             values = dict(
-                source=source, asset="ETH-USD", last_attempt=now,
-                last_success=now if success else None, last_failure=None if success else now,
-                attempts=1, received=int(success), inserted=int(inserted), errors=int(not success),
-                consecutive_failures=0 if success else 1, last_error_type=error_type,
+                source=source,
+                asset="ETH-USD",
+                last_attempt=now,
+                last_success=now if success else None,
+                last_failure=None if success else now,
+                attempts=1,
+                received=int(success),
+                inserted=int(inserted),
+                errors=int(not success),
+                consecutive_failures=0 if success else 1,
+                last_error_type=error_type,
                 last_http_status=http_status,
             )
             table = ConnectorHealthRow.__table__
@@ -170,11 +192,14 @@ class ObservationStore:
                 inserted=table.c.inserted + int(inserted),
                 errors=table.c.errors + int(not success),
                 consecutive_failures=0 if success else table.c.consecutive_failures + 1,
-                last_error_type=error_type, last_http_status=http_status,
+                last_error_type=error_type,
+                last_http_status=http_status,
             )
-            session.execute(insert(table).values(**values).on_conflict_do_update(
-                index_elements=["source", "asset"], set_=updates
-            ))
+            session.execute(
+                insert(table)
+                .values(**values)
+                .on_conflict_do_update(index_elements=["source", "asset"], set_=updates)
+            )
         return bool(inserted)
 
     def health(self) -> dict[str, dict]:
@@ -189,26 +214,42 @@ class ObservationStore:
             }
 
     def snapshot(
-        self, *, dataset: str, cutoff: datetime, history_seconds: int,
-        freshness_seconds: int, max_observations: int = 10000,
+        self,
+        *,
+        dataset: str,
+        cutoff: datetime,
+        history_seconds: int,
+        freshness_seconds: int,
+        max_observations: int = 10000,
     ) -> list[Observation]:
         if cutoff.tzinfo is None:
             raise ValueError("cutoff must be timezone-aware")
         cutoff = cutoff.astimezone(UTC)
-        ranked = select(
-            ObservationRow.payload, ObservationRow.timestamp,
-            func.row_number().over(
-                partition_by=ObservationRow.source,
-                order_by=(ObservationRow.timestamp.desc(), ObservationRow.id.desc()),
-            ).label("rank"),
-        ).where(
-            ObservationRow.dataset == dataset, ObservationRow.asset == "ETH-USD",
-            ObservationRow.timestamp <= cutoff, ObservationRow.received_at <= cutoff,
-        ).subquery()
+        ranked = (
+            select(
+                ObservationRow.payload,
+                ObservationRow.timestamp,
+                func.row_number()
+                .over(
+                    partition_by=ObservationRow.source,
+                    order_by=(ObservationRow.timestamp.desc(), ObservationRow.id.desc()),
+                )
+                .label("rank"),
+            )
+            .where(
+                ObservationRow.dataset == dataset,
+                ObservationRow.asset == "ETH-USD",
+                ObservationRow.timestamp <= cutoff,
+                ObservationRow.received_at <= cutoff,
+            )
+            .subquery()
+        )
         start = cutoff - timedelta(seconds=history_seconds + freshness_seconds)
-        statement = select(ranked.c.payload).where(
-            or_(ranked.c.rank == 1, ranked.c.timestamp >= start)
-        ).limit(max_observations + 1)
+        statement = (
+            select(ranked.c.payload)
+            .where(or_(ranked.c.rank == 1, ranked.c.timestamp >= start))
+            .limit(max_observations + 1)
+        )
         with self.session() as session:
             payloads = list(session.scalars(statement))
         if len(payloads) > max_observations:
@@ -220,36 +261,50 @@ class ObservationStore:
         with self.session() as session, session.begin():
             try:
                 with session.begin_nested():
-                    session.add(AnalysisRoundRow(
-                        id=report.round_id, dataset=report.dataset, asset=report.asset,
-                        cutoff=report.cutoff, payload=payload,
-                    ))
+                    session.add(
+                        AnalysisRoundRow(
+                            id=report.round_id,
+                            dataset=report.dataset,
+                            asset=report.asset,
+                            cutoff=report.cutoff,
+                            payload=payload,
+                        )
+                    )
                     session.flush()
             except IntegrityError:
-                existing = session.scalar(select(AnalysisRoundRow.payload).where(
-                    AnalysisRoundRow.id == report.round_id
-                ))
+                existing = session.scalar(
+                    select(AnalysisRoundRow.payload).where(AnalysisRoundRow.id == report.round_id)
+                )
                 if existing != payload:
                     raise ValueError("immutable round identity conflict") from None
                 return False
         return True
 
     def rounds(self, *, dataset: str = "live", limit: int = 100) -> list[dict]:
-        statement = select(AnalysisRoundRow.payload).where(
-            AnalysisRoundRow.dataset == dataset
-        ).order_by(AnalysisRoundRow.cutoff.desc(), AnalysisRoundRow.id.desc()).limit(limit)
+        statement = (
+            select(AnalysisRoundRow.payload)
+            .where(AnalysisRoundRow.dataset == dataset)
+            .order_by(AnalysisRoundRow.cutoff.desc(), AnalysisRoundRow.id.desc())
+            .limit(limit)
+        )
         with self.session() as session:
             return [json.loads(payload) for payload in session.scalars(statement)]
 
     def get_round(self, round_id: str, *, dataset: str = "live") -> dict | None:
         with self.session() as session:
-            payload = session.scalar(select(AnalysisRoundRow.payload).where(
-                AnalysisRoundRow.id == round_id, AnalysisRoundRow.dataset == dataset
-            ))
+            payload = session.scalar(
+                select(AnalysisRoundRow.payload).where(
+                    AnalysisRoundRow.id == round_id, AnalysisRoundRow.dataset == dataset
+                )
+            )
         return json.loads(payload) if payload else None
 
     def list(
-        self, *, dataset: str = "live", asset: str = "ETH-USD", limit: int = 100,
+        self,
+        *,
+        dataset: str = "live",
+        asset: str = "ETH-USD",
+        limit: int = 100,
         source: Source | None = None,
     ) -> list[Observation]:
         statement = (

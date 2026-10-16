@@ -10,8 +10,8 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///data/verdict.db"
     poll_interval_seconds: float = Field(default=2, ge=1, le=300)
     request_timeout_seconds: float = Field(default=10, gt=0, le=60)
-    freshness_seconds: float = Field(default=30, gt=0)
-    max_future_skew_seconds: float = Field(default=5, ge=0)
+    freshness_seconds: int = Field(default=30, ge=1, le=300)
+    max_future_skew_seconds: int = Field(default=5, ge=0, le=60)
     log_level: str = "INFO"
 
 
