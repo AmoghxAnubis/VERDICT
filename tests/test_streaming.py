@@ -323,11 +323,13 @@ def test_heartbeat_watchdog_is_not_satisfied_by_other_messages(store, monkeypatc
 
     async def limited_wait(awaitable, timeout):
         timeouts.append(timeout)
-        return await real_wait_for(awaitable, timeout=min(timeout, 0.02))
+        return await real_wait_for(awaitable, timeout=min(timeout, 0.1))
 
     class SilentSocket(Socket):
         async def recv(self):
             if self.messages:
+                if self.messages[0].get("type") == "unknown":
+                    await asyncio.sleep(0.02)
                 return await super().recv()
             await asyncio.Event().wait()
 
