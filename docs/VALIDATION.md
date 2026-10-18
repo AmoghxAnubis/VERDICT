@@ -41,6 +41,37 @@ consensus, the dashboard, cryptographic proofs, and contracts are later mileston
 - Immutable round storage, dataset-scoped API retrieval, receipt-time boundaries,
   coverage-aware TWAP, zero MAD, retries, and failure/recovery counters are covered.
 
-Docker/PostgreSQL runtime and CI execution remain unverified locally. Streaming,
-oracle/DEX adapters, Redis recovery, held-out historical validation, trust,
-dependency-aware consensus, and confidence remain in the roadmap.
+Docker/PostgreSQL runtime and CI execution remain unverified locally. The next
+section records the subsequent oracle/DEX adapter integration.
+
+# Six-provider oracle/DEX integration
+
+Validated on 2026-10-18 using the project-local Python 3.12 runtime.
+
+- Ruff lint and formatting checks; 147 tests pass, with the optional PostgreSQL
+  integration test skipped without its database URL.
+- Six-provider synthetic replay through the real normalizers, isolated SQLite
+  storage, reopened connections, statistical analysis, immutable rounds, and API.
+  All six observations remain inliers at `2026-10-16T00:00:10Z`; publication stays
+  disabled. Repeated replay inserts zero additional observations.
+- Mocked HTTP tests for Chainlink/Uniswap hash-pinned Ethereum reads, wrong-network
+  rejection, all three requested block tags, RPC envelope identity/error handling,
+  and reorg rejection. ABI selectors are checked against known interface selectors.
+- Pyth exponent/integer/confidence handling, feed identity, retained hex evidence,
+  configurable endpoint/Bearer authentication, and credential-free health/evidence.
+- Uniswap pair/decimals/liquidity/lock checks, actual USDC/USD conversion (including
+  a non-par rate), same-block conversion, and stale conversion rejection.
+- Sequence tie handling in latest queries, snapshots, and round analysis. Migration
+  0003 backfills existing sequence payloads and preserves evidence through upgrade,
+  downgrade/re-upgrade, and model/schema checks. The 0001 upgrade path still passes.
+- Independent six-source worker health, duplicate receipts, isolated failures,
+  on-chain polling/retry intervals, and atomic rejection of malformed replay data.
+- The dependency lock includes the Ethereum Keccak backend (`pycryptodome`),
+  required for contract-call selectors in fresh installs.
+
+The new live oracle/DEX endpoints have not been exercised in this validation.
+Pyth requires an API key; RPC service support and availability must be checked in
+the target environment. Docker/PostgreSQL runtime, CI execution, source-specific
+freshness calibration, later reorg reconciliation, signature verification of Hermes
+updates, and held-out historical validation remain unverified or unimplemented as
+described in the roadmap and adapter documentation.
