@@ -196,47 +196,159 @@ class ObservationStore:
             raise ValueError("connector health only accepts matching live observations")
         if (observation is None) == (error_type is None):
             raise ValueError("an attempt must contain either an observation or an error")
+        with self.session() as session, session.begin():
+            inserted = self._insert(session, observation) if observation else False
+            self._record_health(
+                session,
+                source,
+                inserted=int(inserted),
+                received=int(observation is not None),
+                error_type=error_type,
+                http_status=http_status,
+            )
+        return bool(inserted)
+
+    def _record_health(
+        self,
+        session: Session,
+        source: Source,
+        *,
+        inserted: int,
+        received: int,
+        error_type: str | None = None,
+        http_status: int | None = None,
+    ) -> None:
         now = datetime.now(UTC)
-        success = observation is not None
+        success = error_type is None
         from sqlalchemy.dialects.postgresql import insert as postgres_insert
         from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
         insert = sqlite_insert if self.engine.dialect.name == "sqlite" else postgres_insert
+        values = dict(
+            source=source,
+            asset="ETH-USD",
+            last_attempt=now,
+            last_success=now if success else None,
+            last_failure=None if success else now,
+            attempts=received if success else 1,
+            received=received,
+            inserted=inserted,
+            errors=int(not success),
+            consecutive_failures=0 if success else 1,
+            last_error_type=error_type,
+            last_http_status=http_status,
+        )
+        table = ConnectorHealthRow.__table__
+        updates = dict(
+            last_attempt=now,
+            last_success=now if success else table.c.last_success,
+            last_failure=table.c.last_failure if success else now,
+            attempts=table.c.attempts + (received if success else 1),
+            received=table.c.received + received,
+            inserted=table.c.inserted + inserted,
+            errors=table.c.errors + int(not success),
+            consecutive_failures=0 if success else table.c.consecutive_failures + 1,
+            last_error_type=error_type,
+            last_http_status=http_status,
+        )
+        session.execute(
+            insert(table)
+            .values(**values)
+            .on_conflict_do_update(index_elements=["source", "asset"], set_=updates)
+        )
+
+    def stream_states(self) -> dict[str, dict]:
+        with self.session() as session:
+            rows = session.execute(select(StreamCheckpointRow.__table__)).mappings()
+            return {
+                row["source"]: {
+                    key: (
+                        value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
+                    )
+                    if isinstance(value, datetime)
+                    else value
+                    for key, value in row.items()
+                }
+                for row in rows
+            }
+
+    def set_coinbase_stream_status(
+        self,
+        status: str,
+        *,
+        heartbeat_at: datetime | None = None,
+    ) -> None:
+        if status not in ("connecting", "recovering", "streaming", "disconnected"):
+            raise ValueError("invalid stream status")
+        from sqlalchemy.dialects.postgresql import insert as postgres_insert
+        from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+        insert = sqlite_insert if self.engine.dialect.name == "sqlite" else postgres_insert
+        values = dict(
+            source="coinbase", asset="ETH-USD", status=status, updated_at=datetime.now(UTC)
+        )
+        updates = dict(status=status, updated_at=values["updated_at"])
+        if heartbeat_at is not None:
+            if heartbeat_at.tzinfo is None:
+                raise ValueError("heartbeat receipt must be timezone-aware")
+            values["last_heartbeat"] = heartbeat_at
+            updates["last_heartbeat"] = heartbeat_at
         with self.session() as session, session.begin():
-            inserted = self._insert(session, observation) if observation else False
-            values = dict(
-                source=source,
-                asset="ETH-USD",
-                last_attempt=now,
-                last_success=now if success else None,
-                last_failure=None if success else now,
-                attempts=1,
-                received=int(success),
-                inserted=int(inserted),
-                errors=int(not success),
-                consecutive_failures=0 if success else 1,
-                last_error_type=error_type,
-                last_http_status=http_status,
-            )
-            table = ConnectorHealthRow.__table__
-            updates = dict(
-                last_attempt=now,
-                last_success=now if success else table.c.last_success,
-                last_failure=table.c.last_failure if success else now,
-                attempts=table.c.attempts + 1,
-                received=table.c.received + int(success),
-                inserted=table.c.inserted + int(inserted),
-                errors=table.c.errors + int(not success),
-                consecutive_failures=0 if success else table.c.consecutive_failures + 1,
-                last_error_type=error_type,
-                last_http_status=http_status,
-            )
             session.execute(
-                insert(table)
+                insert(StreamCheckpointRow)
                 .values(**values)
-                .on_conflict_do_update(index_elements=["source", "asset"], set_=updates)
+                .on_conflict_do_update(
+                    index_elements=["source", "asset"],
+                    set_=updates,
+                )
             )
-        return bool(inserted)
+
+    def record_coinbase_stream_batch(
+        self,
+        observations: list[Observation],
+        *,
+        expected_trade_id: int | None,
+    ) -> int:
+        """Commit a contiguous range, its health counts, and checkpoint together."""
+        if not observations:
+            raise ValueError("stream batch cannot be empty")
+        trade_ids = []
+        for observation in observations:
+            event = observation.provider_event_id
+            if (
+                observation.source != "coinbase"
+                or observation.dataset != "live"
+                or not event.isascii()
+                or not event.isdigit()
+                or int(event) > 2**63 - 1
+            ):
+                raise ValueError("stream checkpoints only accept live Coinbase trade IDs")
+            trade_ids.append(int(event))
+        if expected_trade_id is None:
+            if len(trade_ids) != 1:
+                raise ValueError("initial bootstrap must contain one baseline trade")
+        elif trade_ids[0] != expected_trade_id + 1:
+            raise ValueError("stream batch does not continue its checkpoint")
+        if any(current != previous + 1 for previous, current in zip(trade_ids, trade_ids[1:])):
+            raise ValueError("stream batch has a missing, repeated, or unordered trade ID")
+        with self.session() as session, session.begin():
+            # A conditional update also serializes competing writers on PostgreSQL/SQLite.
+            statement = (
+                update(StreamCheckpointRow)
+                .where(
+                    StreamCheckpointRow.source == "coinbase",
+                    StreamCheckpointRow.asset == "ETH-USD",
+                    StreamCheckpointRow.last_trade_id == expected_trade_id,
+                )
+                .values(last_trade_id=trade_ids[-1], updated_at=datetime.now(UTC))
+            )
+            if expected_trade_id is None:
+                statement = statement.values(baseline_trade_id=trade_ids[0])
+            if session.execute(statement).rowcount != 1:
+                raise CheckpointConflict("stream checkpoint changed or was not initialized")
+            inserted = sum(self._insert(session, observation) for observation in observations)
+            self._record_health(session, "coinbase", inserted=inserted, received=len(observations))
+        return inserted
 
     def health(self) -> dict[str, dict]:
         with self.session() as session:
