@@ -3,7 +3,7 @@ from decimal import Decimal, localcontext
 
 import pytest
 
-from verdict.models import SOURCES
+from verdict.models import EXCHANGE_SOURCES as SOURCES
 from verdict.statistics import AnalysisPolicy, analyze, build_report
 
 BASE = datetime(2026, 10, 16, tzinfo=UTC)

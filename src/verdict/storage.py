@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from sqlalchemy import (
+    BigInteger,
     DateTime,
     Index,
     Integer,
@@ -30,7 +31,15 @@ class Base(DeclarativeBase):
 class ObservationRow(Base):
     __tablename__ = "observations"
     __table_args__ = (
-        Index("ix_observation_lookup", "dataset", "asset", "source", "timestamp", "id"),
+        Index(
+            "ix_observation_lookup",
+            "dataset",
+            "asset",
+            "source",
+            "timestamp",
+            "event_sequence",
+            "id",
+        ),
         Index("ix_observation_cutoff", "dataset", "asset", "received_at", "timestamp"),
     )
 
@@ -40,6 +49,7 @@ class ObservationRow(Base):
     asset: Mapped[str] = mapped_column(String(16))
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    event_sequence: Mapped[int] = mapped_column(BigInteger, default=0)
     payload: Mapped[str] = mapped_column(Text)
 
 
@@ -100,6 +110,7 @@ class ObservationStore:
         with self.session() as session:
             session.execute(text("SELECT id FROM observations LIMIT 1"))
             session.execute(text("SELECT received_at FROM observations LIMIT 1"))
+            session.execute(text("SELECT event_sequence FROM observations LIMIT 1"))
             session.execute(text("SELECT source FROM connector_health LIMIT 1"))
             session.execute(text("SELECT id FROM analysis_rounds LIMIT 1"))
 
@@ -115,6 +126,7 @@ class ObservationStore:
                         asset=observation.asset,
                         timestamp=observation.timestamp,
                         received_at=observation.received_at,
+                        event_sequence=observation.event_sequence,
                         payload=observation.model_dump_json(),
                     )
                 )
@@ -128,8 +140,14 @@ class ObservationStore:
             if existing is None:
                 raise
             previous = Observation.model_validate_json(existing)
-            if (previous.value, previous.timestamp) != (observation.value, observation.timestamp):
-                raise ObservationConflict("provider event changed price or timestamp") from None
+            if (previous.value, previous.timestamp, previous.event_sequence) != (
+                observation.value,
+                observation.timestamp,
+                observation.event_sequence,
+            ):
+                raise ObservationConflict(
+                    "provider event changed price, timestamp, or sequence"
+                ) from None
             return False
         return True
 
@@ -234,7 +252,11 @@ class ObservationStore:
                 func.row_number()
                 .over(
                     partition_by=ObservationRow.source,
-                    order_by=(ObservationRow.timestamp.desc(), ObservationRow.id.desc()),
+                    order_by=(
+                        ObservationRow.timestamp.desc(),
+                        ObservationRow.event_sequence.desc(),
+                        ObservationRow.id.desc(),
+                    ),
                 )
                 .label("rank"),
             )
@@ -312,7 +334,11 @@ class ObservationStore:
         statement = (
             select(ObservationRow)
             .where(ObservationRow.dataset == dataset, ObservationRow.asset == asset)
-            .order_by(ObservationRow.timestamp.desc(), ObservationRow.id.desc())
+            .order_by(
+                ObservationRow.timestamp.desc(),
+                ObservationRow.event_sequence.desc(),
+                ObservationRow.id.desc(),
+            )
             .limit(limit)
         )
         if source is not None:

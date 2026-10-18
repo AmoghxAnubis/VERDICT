@@ -9,8 +9,9 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validato
 Dataset = Annotated[str, Field(pattern=r"^(live|replay:[a-z0-9][a-z0-9_-]{0,63})$")]
 Asset = Literal["ETH-USD"]
 Source = Literal["coinbase", "kraken", "binance_us", "chainlink", "pyth", "uniswap_v3"]
-SOURCES: tuple[Source, ...] = ("coinbase", "kraken", "binance_us")
-ALL_SOURCES: tuple[Source, ...] = (*SOURCES, "chainlink", "pyth", "uniswap_v3")
+EXCHANGE_SOURCES: tuple[Source, ...] = ("coinbase", "kraken", "binance_us")
+SOURCES: tuple[Source, ...] = (*EXCHANGE_SOURCES, "chainlink", "pyth", "uniswap_v3")
+ALL_SOURCES = SOURCES
 PositiveDecimal = Annotated[Decimal, Field(gt=0, max_digits=38, decimal_places=18)]
 Address = Annotated[str, Field(pattern=r"^0x[0-9a-fA-F]{40}$")]
 Hash32 = Annotated[str, Field(pattern=r"^0x[0-9a-fA-F]{64}$")]
@@ -61,14 +62,17 @@ class ObservationData(BaseModel):
     source: Source = "coinbase"
     source_type: Literal["exchange", "oracle", "dex"] = "exchange"
     provider_event_id: str = Field(min_length=1, max_length=128)
-    event_sequence: int = Field(default=0, ge=0, le=9223372036854775807, strict=True,
-                                exclude_if=lambda value: value == 0)
+    event_sequence: int = Field(
+        default=0, ge=0, le=9223372036854775807, strict=True, exclude_if=lambda value: value == 0
+    )
     value: PositiveDecimal
     timestamp: AwareDatetime
     received_at: AwareDatetime
     latency_ms: float = Field(ge=0, allow_inf_nan=False)
     raw_payload: dict
-    provenance: SourceProvenance | None = Field(default=None, exclude_if=lambda value: value is None)
+    provenance: SourceProvenance | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
     @model_validator(mode="after")
     def source_metadata_matches(self):

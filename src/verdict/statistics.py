@@ -10,7 +10,7 @@ from typing import Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
-from verdict.models import SOURCES, Asset, Dataset, Observation, Source
+from verdict.models import SOURCES, Asset, Dataset, Observation, Source, SourceProvenance
 from verdict.storage import ObservationStore
 
 BPS = Decimal(10000)
@@ -18,12 +18,12 @@ BPS = Decimal(10000)
 
 class AnalysisPolicy(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
-    version: Literal["statistics-v1"] = "statistics-v1"
+    version: Literal["statistics-v1", "statistics-v2"] = "statistics-v2"
     sources: tuple[Source, ...] = SOURCES
     history_seconds: int = Field(default=300, ge=10, le=3600)
     freshness_seconds: int = Field(default=30, ge=1, le=300)
     max_future_skew_seconds: int = Field(default=5, ge=0, le=60)
-    minimum_sources: int = Field(default=3, ge=3, le=3)
+    minimum_sources: int = Field(default=3, ge=3, le=6)
     mad_multiplier: int = Field(default=6, ge=1, le=20)
     minimum_deviation_bps: int = Field(default=100, ge=1, le=10000)
     velocity_signal_bps_per_second: int = Field(default=200, ge=1)
@@ -32,6 +32,9 @@ class AnalysisPolicy(BaseModel):
 
 class SourceAnalysis(BaseModel):
     source: Source
+    provenance: SourceProvenance | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
     observation_id: str | None = None
     value: Decimal | None = None
     timestamp: AwareDatetime | None = None
@@ -134,7 +137,7 @@ def analyze(
                 and row.source in policy.sources
             )
         ),
-        key=lambda row: (row.source, row.timestamp, row.observation_id),
+        key=lambda row: (row.source, row.timestamp, row.event_sequence, row.observation_id),
     )
     if len(rows) > policy.max_observations:
         raise ValueError("analysis observation limit exceeded")
@@ -151,6 +154,7 @@ def analyze(
             else:
                 age = seconds(cutoff - latest.timestamp)
                 decision.observation_id = latest.observation_id
+                decision.provenance = latest.provenance
                 decision.value = latest.value
                 decision.timestamp = latest.timestamp
                 decision.age_seconds = age

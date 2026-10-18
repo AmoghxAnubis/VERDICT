@@ -26,7 +26,7 @@ def main() -> None:
     serve = commands.add_parser("serve", help="Run the read-only API")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8000)
-    ingest = commands.add_parser("ingest", help="Poll public ETH/USD exchange trades")
+    ingest = commands.add_parser("ingest", help="Poll ETH/USD exchanges, oracles, and the DEX pool")
     ingest.add_argument("--source", choices=["all", *SOURCES], default="all")
     ingest.add_argument("--once", action="store_true")
     replay_parser = commands.add_parser("replay", help="Replay a fixture into isolated storage")

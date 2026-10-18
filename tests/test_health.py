@@ -7,7 +7,7 @@ import pytest
 from verdict.config import Settings
 from verdict.connectors.registry import CONNECTORS
 from verdict.ingestion import ingest_all, retry_delay
-from verdict.models import SOURCES
+from verdict.models import EXCHANGE_SOURCES as SOURCES
 
 
 def test_health_counts_duplicates_failures_and_recovery(store, market_observation):
@@ -44,8 +44,19 @@ def test_concurrent_providers_preserve_success_when_one_fails(
             else (AsyncMock(return_value=market_observation(source, dataset="live")))
         )
         monkeypatch.setattr(CONNECTORS[source], "fetch", fetch)
+    for source in ("chainlink", "pyth", "uniswap_v3"):
+        monkeypatch.setattr(
+            CONNECTORS[source], "fetch", AsyncMock(side_effect=ValueError("invalid"))
+        )
     results = asyncio.run(ingest_all(store, Settings(_env_file=None), once=True))
-    assert [result["status"] for result in results] == ["ok", "error", "ok"]
+    assert [result["status"] for result in results] == [
+        "ok",
+        "error",
+        "ok",
+        "error",
+        "error",
+        "error",
+    ]
     assert {row.source for row in store.list()} == {"coinbase", "binance_us"}
     assert store.health()["kraken"]["consecutive_failures"] == 1
 

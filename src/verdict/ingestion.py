@@ -7,7 +7,7 @@ from email.utils import parsedate_to_datetime
 import httpx
 
 from verdict.config import Settings
-from verdict.connectors.registry import CONNECTORS
+from verdict.connectors.registry import build_connector, poll_interval
 from verdict.models import SOURCES, Source
 from verdict.storage import ObservationStore
 
@@ -42,7 +42,8 @@ async def ingest_source(
     async with httpx.AsyncClient(
         timeout=settings.request_timeout_seconds, headers={"User-Agent": "VERDICT/0.1.0"}
     ) as client:
-        connector = CONNECTORS[source](client, settings.max_future_skew_seconds)
+        connector = build_connector(source, client, settings)
+        interval = poll_interval(source, settings)
         while True:
             try:
                 observation = await connector.fetch()
@@ -62,7 +63,7 @@ async def ingest_source(
                 if once:
                     raise
                 failures += 1
-                delay = retry_delay(error, failures, settings.poll_interval_seconds)
+                delay = retry_delay(error, failures, interval)
                 logger.warning(
                     "provider_fetch_failed source=%s error_type=%s http_status=%s retry_seconds=%s",
                     source,
@@ -81,7 +82,7 @@ async def ingest_source(
             )
             if once:
                 return {"source": source, "status": "ok", "inserted": inserted}
-            await sleep(settings.poll_interval_seconds)
+            await sleep(interval)
 
 
 async def ingest_coinbase(

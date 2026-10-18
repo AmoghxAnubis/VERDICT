@@ -32,7 +32,7 @@ class ParsedPrice(BaseModel):
 
 class Binary(BaseModel):
     encoding: Literal["hex"]
-    data: list[str] = Field(min_length=1)
+    data: list[str] = Field(min_length=1, max_length=16)
 
 
 class HermesResponse(BaseModel):
@@ -45,7 +45,12 @@ def normalize_price(
 ) -> Observation:
     response = HermesResponse.model_validate(payload)
     for message in response.binary.data:
-        if not message or len(message) % 2 or len(message) > 1_000_000:
+        if (
+            not message
+            or len(message) % 2
+            or len(message) > 1_000_000
+            or any(character not in "0123456789abcdefABCDEF" for character in message)
+        ):
             raise ValueError("invalid Pyth update message")
         try:
             bytes.fromhex(message)
@@ -60,32 +65,61 @@ def normalize_price(
         value = Decimal(price.price).scaleb(price.expo)
         confidence = Decimal(price.conf).scaleb(price.expo)
     return Observation(
-        dataset=dataset, source="pyth", source_type="oracle",
+        dataset=dataset,
+        source="pyth",
+        source_type="oracle",
         provider_event_id=f"{price.publish_time}:{parsed.metadata.slot}",
         event_sequence=parsed.metadata.slot,
-        value=value, timestamp=epoch_seconds(price.publish_time), received_at=received_at,
-        latency_ms=latency_ms, raw_payload=payload,
+        value=value,
+        timestamp=epoch_seconds(price.publish_time),
+        received_at=received_at,
+        latency_ms=latency_ms,
+        raw_payload=payload,
         provenance=SourceProvenance(
-            protocol="pyth", instrument="ETH/USD", verification="hermes_unverified",
-            dependencies=("pyth_network", "hermes_service"), pyth_feed_id=ETH_USD_ID,
+            protocol="pyth",
+            instrument="ETH/USD",
+            verification="hermes_unverified",
+            dependencies=("pyth_network", "hermes_service"),
+            pyth_feed_id=ETH_USD_ID,
             pyth_confidence_usd=confidence,
         ),
     )
 
 
 class PythConnector:
-    def __init__(self, client: httpx.AsyncClient, max_future_skew_seconds: float = 5):
+    def __init__(
+        self,
+        client: httpx.AsyncClient,
+        max_future_skew_seconds: float = 5,
+        *,
+        hermes_url: str = HERMES_URL,
+        api_key: str = "",
+    ):
         self.client = client
         self.max_future_skew_seconds = max_future_skew_seconds
+        self.hermes_url = hermes_url.rstrip("/")
+        self.api_key = api_key
 
     async def fetch(self) -> Observation:
         started = time.perf_counter()
-        response = await self.client.get(f"{HERMES_URL}/v2/updates/price/latest", params={
-            "ids[]": ETH_USD_ID, "encoding": "hex", "parsed": "true",
-        })
+        response = await self.client.get(
+            f"{self.hermes_url}/v2/updates/price/latest",
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+            }
+            if self.api_key
+            else {},
+            params={
+                "ids[]": ETH_USD_ID,
+                "encoding": "hex",
+                "parsed": "true",
+            },
+        )
         received_at = datetime.now(UTC)
         response.raise_for_status()
         observation = normalize_price(
-            response.json(), received_at=received_at, latency_ms=(time.perf_counter() - started)*1000,
+            response.json(),
+            received_at=received_at,
+            latency_ms=(time.perf_counter() - started) * 1000,
         )
         return check_clock(observation, self.max_future_skew_seconds)

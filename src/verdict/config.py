@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     ethereum_block_tag: Literal["latest", "safe", "finalized"] = "latest"
     onchain_poll_interval_seconds: float = Field(default=15, ge=12, le=300)
     usdc_conversion_max_age_seconds: int = Field(default=86400, ge=1, le=172800)
+    pyth_hermes_url: str = "https://hermes.pyth.network"
+    pyth_api_key: SecretStr = SecretStr("")
     log_level: str = "INFO"
 
 

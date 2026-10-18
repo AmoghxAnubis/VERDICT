@@ -2,6 +2,7 @@
 
 import asyncio
 import itertools
+import re
 from datetime import UTC, datetime
 from typing import Literal
 
@@ -48,7 +49,9 @@ def decode_return(types: tuple[str, ...], value: str) -> tuple:
 
 
 def quantity(value: str) -> int:
-    if not isinstance(value, str) or not value.startswith("0x") or len(value) > 66:
+    if not isinstance(value, str) or not re.fullmatch(
+        r"0x(?:0|[1-9a-fA-F][0-9a-fA-F]{0,63})", value
+    ):
         raise RPCError("invalid RPC quantity")
     try:
         return int(value, 16)
@@ -64,9 +67,15 @@ class EthereumRPC:
 
     async def request(self, method: str, params: list):
         request_id = next(self.ids)
-        response = await self.client.post(self.url, json={
-            "jsonrpc": "2.0", "id": request_id, "method": method, "params": params,
-        })
+        response = await self.client.post(
+            self.url,
+            json={
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "method": method,
+                "params": params,
+            },
+        )
         response.raise_for_status()
         payload = response.json()
         if not isinstance(payload, dict) or payload.get("jsonrpc") != "2.0":
@@ -86,8 +95,10 @@ class EthereumRPC:
             raise RPCError("invalid block result")
         try:
             block = ChainBlock(
-                number=quantity(payload["number"]), hash=payload["hash"],
-                timestamp=epoch_seconds(quantity(payload["timestamp"])), tag=tag,
+                number=quantity(payload["number"]),
+                hash=payload["hash"],
+                timestamp=epoch_seconds(quantity(payload["timestamp"])),
+                tag=tag,
             )
         except (KeyError, TypeError) as error:
             raise RPCError("incomplete block result") from error
@@ -96,15 +107,21 @@ class EthereumRPC:
         return block
 
     async def call(self, address: str, data: str, block: ChainBlock) -> str:
-        return await self.request("eth_call", [{"to": address, "data": data}, hex(block.number)])
+        return await self.request(
+            "eth_call",
+            [
+                {"to": address, "data": data},
+                {"blockHash": block.hash, "requireCanonical": True},
+            ],
+        )
 
     async def calls(self, address: str, signatures: dict[str, str], block: ChainBlock) -> dict:
-        results = await asyncio.gather(*(
-            self.call(address, call_data(signature), block) for signature in signatures.values()
-        ))
+        results = await asyncio.gather(
+            *(self.call(address, call_data(signature), block) for signature in signatures.values())
+        )
         return dict(zip(signatures, results, strict=True))
 
     async def ensure_canonical(self, block: ChainBlock) -> None:
         current = await self.request("eth_getBlockByNumber", [hex(block.number), False])
-        if not isinstance(current, dict) or current.get("hash", "").lower() != block.hash.lower():
+        if not isinstance(current, dict) or current.get("hash") != block.hash:
             raise ReorgDetected("block changed during source read")
