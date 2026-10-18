@@ -52,10 +52,27 @@ providers' observations. One-shot mode reports each result and exits unsuccessfu
 if any provider fails. Continuous workers retry with capped exponential backoff
 and respect `Retry-After` up to five minutes. The API never starts ingestion itself.
 
-The connector uses Coinbase's public
+The REST connector uses Coinbase's public
 [product ticker endpoint](https://docs.cdp.coinbase.com/api-reference/exchange-api/rest-api/products/get-product-ticker).
-It records the last trade, not a guaranteed executable quote. REST polling is the
-initial adapter; streaming and REST recovery are later ingestion work.
+It records the last trade, not a guaranteed executable quote. Continuous Coinbase
+streaming with durable checkpoints and REST gap recovery is also available:
+
+```powershell
+uv run --no-sync verdict db upgrade
+uv run --no-sync verdict ingest --source coinbase --coinbase-stream
+# Stream Coinbase while the other five providers continue independent polling:
+uv run --no-sync verdict ingest --coinbase-stream
+```
+
+The default remains REST polling. `VERDICT_COINBASE_STREAM_ENABLED=true` enables
+streaming for continuous ingestion through configuration; `--once` still polls
+REST. The explicit `--coinbase-stream` flag cannot be combined with `--once` or
+another individual source. First launch establishes a baseline at the latest REST
+trade; reconnects and heartbeat gaps recover forward from that retained checkpoint.
+Incomplete recovery does not advance the checkpoint. `/v1/sources` exposes live
+stream status and heartbeat receipt alongside ordinary freshness and health.
+See [streaming behavior and limits](docs/COINBASE_STREAMING.md).
+
 Kraken uses its [recent ETH/USD trades endpoint](https://docs.kraken.com/api-reference/market-data/get-recent-trades).
 Binance.US uses [recent ETHUSD trades](https://docs.binance.us/#get-recent-trades)
 and is identified as `binance_us`, distinct from Binance's global USDT markets.
@@ -91,8 +108,10 @@ for evidence boundaries and operating limits.
 Observation queries support `asset=ETH-USD`,
 `source=coinbase|kraken|binance_us|chainlink|pyth|uniswap_v3`,
 and `limit=1..1000`. Prices are JSON
-strings to preserve decimal precision. `latency_ms` measures the HTTP request
-duration, not the age of the provider's trade. A repeated trade is stored once;
+strings to preserve decimal precision. For HTTP observations, `latency_ms` measures
+request duration, not trade age. Stream matches use zero to indicate unmeasured
+transport latency; receipt time records when the application consumes the message.
+A repeated trade is stored once;
 it does not become fresh just because polling succeeds again. Freshness uses the
 provider timestamp, not the receipt timestamp.
 

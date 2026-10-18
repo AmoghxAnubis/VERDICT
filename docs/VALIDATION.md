@@ -80,3 +80,33 @@ the target environment. Docker/PostgreSQL runtime, CI execution, source-specific
 freshness calibration, later reorg reconciliation, signature verification of Hermes
 updates, and held-out historical validation remain unverified or unimplemented as
 described in the roadmap and adapter documentation.
+
+# Coinbase streaming integration
+
+Validated on 2026-10-19 with the project-local Python 3.12 runtime.
+
+- 193 automated tests pass; the optional PostgreSQL integration test remains
+  skipped without its database URL. Ruff lint and formatting checks pass.
+- Mocked sessions exercise initial subscription, last-match handling, duplicate and
+  out-of-order overlap, match/heartbeat gaps, reconnect/resubscribe, cancellation,
+  and a heartbeat deadline independent of unrelated messages.
+- REST recovery tests exercise opaque cursor pagination, overlapping pages, missing
+  trades, response ordering, lagging REST, page bounds, and conflicting triggering
+  matches. Failed recovery leaves retained evidence and checkpoints unchanged.
+- Checkpoint/evidence/health writes commit atomically, conflicting batches roll back,
+  and stale workers cannot overwrite a newer checkpoint. Reopening the database
+  retains the baseline and current trade IDs.
+- Migration 0003 to 0004 preserves existing observations, health, and immutable
+  rounds; schema/model agreement passes. Existing earlier upgrade paths also pass.
+- CLI argument validation, continuous/one-shot routing, provider independence,
+  and live/replay API isolation are covered. The optional PostgreSQL contract now
+  includes checkpoint writes, but has not been run locally.
+- A bounded live public Coinbase check subscribed successfully, bootstrapped from
+  REST trade 849170134, retained three subsequent stream trades through 849170137,
+  and received a heartbeat with zero connector errors. It used an isolated SQLite
+  database and cancelled the worker afterward.
+
+Live long-outage recovery, sustained-load behavior, and PostgreSQL runtime remain
+unverified. Reconnect and gap failure cases were tested with controlled transports;
+the live check establishes connectivity and basic stream/REST interoperability.
+Redis Streams and held-out historical calibration remain later Batch 2 work.

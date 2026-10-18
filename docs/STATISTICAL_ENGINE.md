@@ -97,8 +97,10 @@ Adapters pin direct USD markets using the official
 [Coinbase ticker](https://docs.cdp.coinbase.com/api-reference/exchange-api/rest-api/products/get-product-ticker),
 [Kraken recent trades](https://docs.kraken.com/api-reference/market-data/get-recent-trades),
 and [Binance.US recent trades](https://docs.binance.us/#get-recent-trades) interfaces.
-REST samples the most recent trade; it is not a complete trade history or an
-executable bid/ask quote. Streaming/backfill is still pending. Binance.US may be
+REST polling samples the most recent trade; it is not a complete trade history or an
+executable bid/ask quote. Optional [Coinbase streaming](COINBASE_STREAMING.md) adds
+matches and bounded REST gap recovery after an explicit first-launch baseline.
+Unrecovered history is not claimed complete. Binance.US may be
 thinly traded: a successful fetch can still return stale evidence.
 
 Connector health counts attempts, successful receipts, inserted events, errors,

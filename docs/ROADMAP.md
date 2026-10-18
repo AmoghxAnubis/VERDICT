@@ -13,7 +13,7 @@
 
 ## Batch 2: ingestion coverage and statistical analysis
 
-- [ ] Add Coinbase streaming with reconnect and REST gap recovery.
+- [x] Add Coinbase streaming with reconnect and REST gap recovery.
 - [x] Add Kraken and Binance.US direct ETH/USD adapters; verify provider availability.
 - [x] Add Chainlink/Pyth reads and one well-defined Uniswap pool adapter.
 - [x] Preserve chain, block/hash/finality, pair conversion, and lineage metadata.
@@ -28,7 +28,9 @@ Gate: comparable observations from six providers; explainable anomaly decisions.
 
 Six adapters, block-pinned oracle/DEX reads, retained provenance, and six-provider
 synthetic replay are implemented. Live six-provider availability and historical
-calibration remain unverified; streaming and Redis recovery remain open. Binance.US
+calibration remain unverified; Redis recovery remains open. Coinbase streaming now
+has bounded REST recovery, durable checkpoints, and heartbeat/reconnect handling;
+its public WebSocket/REST bootstrap was exercised live. Binance.US
 is a distinct USD venue, not an implicit conversion of Binance ETH/USDT. A live
 check found its latest trade stale despite HTTP 200; the engine correctly withheld
 a three-source baseline instead of relaxing freshness requirements.
