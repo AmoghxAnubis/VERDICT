@@ -16,6 +16,7 @@ from websockets.exceptions import InvalidStatus, WebSocketException
 from verdict.config import Settings
 from verdict.connectors.coinbase import BASE_URL, normalize_ticker
 from verdict.connectors.common import check_clock
+from verdict.event_identity import same_event_content
 from verdict.ingestion import retry_delay
 from verdict.models import Observation
 from verdict.storage import ObservationStore
@@ -93,6 +94,7 @@ async def recover_coinbase(
                 await asyncio.to_thread(
                     store.record_coinbase_stream_batch, [observations[0]], expected_trade_id=None
                 )
+                logger.info("coinbase_stream_bootstrap last_trade_id=%s", target)
                 return target
             if target < checkpoint:
                 raise RecoveryGap("REST is behind the retained checkpoint")
@@ -104,10 +106,7 @@ async def recover_coinbase(
         for trade_id, row in zip(ids, observations, strict=True):
             if checkpoint < trade_id <= target:
                 previous = collected.get(trade_id)
-                if previous is not None and (previous.value, previous.timestamp) != (
-                    row.value,
-                    row.timestamp,
-                ):
+                if previous is not None and not same_event_content(previous, row):
                     raise RecoveryGap("conflicting trade in overlapping REST pages")
                 collected.setdefault(trade_id, row)
         if ids[-1] <= checkpoint + 1:
@@ -120,15 +119,18 @@ async def recover_coinbase(
                 raise RecoveryGap("REST recovery contains missing trade IDs")
             if required_observation is not None:
                 recovered = collected.get(int(required_observation.provider_event_id))
-                if recovered is None or (recovered.value, recovered.timestamp) != (
-                    required_observation.value,
-                    required_observation.timestamp,
-                ):
+                if recovered is None or not same_event_content(recovered, required_observation):
                     raise RecoveryGap("REST recovery conflicts with the triggering match")
-            await asyncio.to_thread(
+            inserted = await asyncio.to_thread(
                 store.record_coinbase_stream_batch,
                 [collected[trade_id] for trade_id in ordered_ids],
                 expected_trade_id=checkpoint,
+            )
+            logger.info(
+                "coinbase_stream_recovered from_trade_id=%s last_trade_id=%s inserted=%s",
+                checkpoint + 1,
+                target,
+                inserted,
             )
             return target
         next_cursor = response.headers.get("CB-AFTER")
@@ -193,6 +195,7 @@ async def coinbase_stream_session(
                 checkpoint = await recover_coinbase(client, store, settings)
                 await asyncio.to_thread(store.set_coinbase_stream_status, "streaming")
                 subscribed = True
+                logger.info("coinbase_stream_ready last_trade_id=%s", checkpoint)
                 heartbeat_deadline = loop.time() + settings.coinbase_stream_timeout_seconds
             continue
         if not subscribed:
@@ -297,10 +300,14 @@ async def ingest_coinbase_stream(
                     failures += 1
                     delay = retry_delay(error, failures, settings.poll_interval_seconds)
                     logger.warning(
-                        "coinbase_stream_failed error_type=%s http_status=%s retry_seconds=%s",
+                        "coinbase_stream_failed error_type=%s http_status=%s "
+                        "retry_seconds=%s reason=%s",
                         type(error).__name__,
                         status,
                         delay,
+                        str(error)
+                        if isinstance(error, (RecoveryGap, StreamProtocolError))
+                        else "provider_or_transport_error",
                     )
                     await sleep(delay)
         finally:

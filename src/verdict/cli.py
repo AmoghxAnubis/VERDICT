@@ -91,6 +91,8 @@ def main() -> None:
             )
             store.save_round(report)
             print(report.model_dump_json(indent=2))
+    except KeyboardInterrupt:
+        logging.getLogger(__name__).info("ingestion_stopped")
     finally:
         engine.dispose()
 

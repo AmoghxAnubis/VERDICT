@@ -265,6 +265,90 @@ def test_stream_overlap_and_out_of_order_messages_preserve_first_receipt(store):
     assert store.health()["coinbase"]["inserted"] == 2
 
 
+@pytest.mark.parametrize("first_stream", [True, False])
+@pytest.mark.parametrize("difference_us", [-1, 1])
+def test_coinbase_cross_transport_microsecond_rounding_keeps_first_evidence(
+    store, first_stream, difference_us
+):
+    first_payload = trade(100, stream=first_stream)
+    incoming_payload = trade(100, stream=not first_stream)
+    incoming_payload["time"] = (
+        BASE + timedelta(seconds=100, microseconds=difference_us)
+    ).isoformat()
+    first = normalize_ticker(first_payload, received_at=BASE + timedelta(hours=1), latency_ms=1)
+    incoming = normalize_ticker(
+        incoming_payload, received_at=BASE + timedelta(hours=2), latency_ms=2
+    )
+    assert store.add(first)
+    assert not store.add(incoming)
+    assert store.list() == [first]
+    assert store.list()[0].raw_payload == first_payload
+
+
+@pytest.mark.parametrize(
+    "stream,first_stream,difference_us,price,sequence",
+    [
+        (False, False, 1, "100", 0),
+        (True, True, 1, "100", 0),
+        (True, False, 2, "100", 0),
+        (True, False, -2, "100", 0),
+        (True, False, 1, "101", 0),
+        (True, False, 1, "100", 1),
+    ],
+)
+def test_microsecond_exception_does_not_hide_real_conflicts(
+    store, stream, first_stream, difference_us, price, sequence
+):
+    first = normalize_ticker(
+        trade(100, stream=first_stream), received_at=BASE + timedelta(hours=1), latency_ms=1
+    )
+    payload = trade(100, price, stream=stream)
+    payload["time"] = (BASE + timedelta(seconds=100, microseconds=difference_us)).isoformat()
+    incoming = normalize_ticker(payload, received_at=BASE + timedelta(hours=2), latency_ms=1)
+    incoming = incoming.model_copy(update={"event_sequence": sequence})
+    store.add(first)
+    with pytest.raises(ObservationConflict):
+        store.add(incoming)
+    assert store.list() == [first]
+
+
+def test_microsecond_exception_is_not_applied_to_other_providers(store, market_observation):
+    first = market_observation("kraken")
+    store.add(first)
+    with pytest.raises(ObservationConflict):
+        store.add(
+            first.model_copy(update={"timestamp": first.timestamp + timedelta(microseconds=1)})
+        )
+
+
+def test_gap_recovery_accepts_trigger_match_with_cross_transport_rounding(store):
+    bootstrap(store)
+    message = trade(103, stream=True)
+    message["time"] = (BASE + timedelta(seconds=103, microseconds=1)).isoformat()
+    run_session(store, [ACK, message], [([100], None), ([103, 102, 101], None)])
+    assert store.stream_states()["coinbase"]["last_trade_id"] == 103
+    assert len(store.list()) == 4
+
+
+def test_restart_recovery_accepts_existing_stream_trade_with_rest_rounding(store):
+    streamed = normalize_ticker(
+        trade(101, stream=True), received_at=BASE + timedelta(hours=1), latency_ms=0
+    )
+    bootstrap(store)
+    store.record_coinbase_stream_batch([streamed], expected_trade_id=100)
+    payload = trade(101)
+    payload["time"] = (BASE + timedelta(seconds=101, microseconds=1)).isoformat()
+
+    async def run():
+        client, _ = recovery_client([httpx.Response(200, json=[payload])])
+        async with client:
+            assert await recover_coinbase(client, store, Settings(_env_file=None)) == 101
+
+    asyncio.run(run())
+    assert store.list()[0] == streamed
+    assert store.stream_states()["coinbase"]["last_trade_id"] == 101
+
+
 @pytest.mark.parametrize("kind", ["match", "last_match", "heartbeat"])
 def test_stream_gaps_recover_missing_trades_before_accepting_progress(store, kind):
     bootstrap(store)
@@ -489,3 +573,19 @@ def test_cli_rejects_incompatible_stream_arguments(monkeypatch, arguments):
     with pytest.raises(SystemExit) as error:
         main()
     assert error.value.code == 2
+
+
+def test_cli_interrupt_stops_ingestion_without_traceback(store, monkeypatch, caplog):
+    from verdict.cli import main
+
+    def interrupted(awaitable):
+        awaitable.close()
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(
+        "sys.argv", ["verdict", "ingest", "--source", "coinbase", "--coinbase-stream"]
+    )
+    monkeypatch.setattr("verdict.cli.asyncio.run", interrupted)
+    with caplog.at_level("INFO"):
+        main()
+    assert "ingestion_stopped" in caplog.text

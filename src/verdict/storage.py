@@ -23,6 +23,7 @@ from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
+from verdict.event_identity import same_event_content
 from verdict.models import Observation, Source
 
 
@@ -159,11 +160,7 @@ class ObservationStore:
             if existing is None:
                 raise
             previous = Observation.model_validate_json(existing)
-            if (previous.value, previous.timestamp, previous.event_sequence) != (
-                observation.value,
-                observation.timestamp,
-                observation.event_sequence,
-            ):
+            if not same_event_content(previous, observation):
                 raise ObservationConflict(
                     "provider event changed price, timestamp, or sequence"
                 ) from None
