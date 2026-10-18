@@ -16,6 +16,7 @@ from sqlalchemy import (
     or_,
     select,
     text,
+    update,
 )
 from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.exc import IntegrityError
@@ -81,6 +82,22 @@ class AnalysisRoundRow(Base):
     payload: Mapped[str] = mapped_column(Text)
 
 
+class StreamCheckpointRow(Base):
+    __tablename__ = "stream_checkpoints"
+
+    source: Mapped[str] = mapped_column(String(64), primary_key=True)
+    asset: Mapped[str] = mapped_column(String(16), primary_key=True)
+    last_trade_id: Mapped[int | None] = mapped_column(BigInteger)
+    baseline_trade_id: Mapped[int | None] = mapped_column(BigInteger)
+    status: Mapped[str] = mapped_column(String(32))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_heartbeat: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CheckpointConflict(ValueError):
+    """Another worker advanced this checkpoint; reload before attempting recovery."""
+
+
 class ObservationConflict(ValueError):
     """A provider reused an event identity with a different price or event time."""
 
@@ -113,6 +130,7 @@ class ObservationStore:
             session.execute(text("SELECT event_sequence FROM observations LIMIT 1"))
             session.execute(text("SELECT source FROM connector_health LIMIT 1"))
             session.execute(text("SELECT id FROM analysis_rounds LIMIT 1"))
+            session.execute(text("SELECT last_trade_id FROM stream_checkpoints LIMIT 1"))
 
     @staticmethod
     def _insert(session: Session, observation: Observation) -> bool:

@@ -13,6 +13,11 @@ class Settings(BaseSettings):
     request_timeout_seconds: float = Field(default=10, gt=0, le=60)
     freshness_seconds: int = Field(default=30, ge=1, le=300)
     max_future_skew_seconds: int = Field(default=5, ge=0, le=60)
+    coinbase_stream_enabled: bool = False
+    coinbase_websocket_url: str = "wss://ws-feed.exchange.coinbase.com"
+    coinbase_stream_timeout_seconds: float = Field(default=10, ge=2, le=60)
+    coinbase_recovery_page_size: int = Field(default=1000, ge=1, le=1000)
+    coinbase_recovery_max_pages: int = Field(default=20, ge=1, le=100)
     ethereum_rpc_url: str = "https://ethereum-rpc.publicnode.com"
     ethereum_block_tag: Literal["latest", "safe", "finalized"] = "latest"
     onchain_poll_interval_seconds: float = Field(default=15, ge=12, le=300)
