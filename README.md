@@ -4,8 +4,9 @@ An evidence and trust layer for off-chain data. The project starts with ETH/USD
 observations, then adds explainable aggregation and testnet publication.
 
 The backend provides a FastAPI service, decimal-safe observation schema, versioned
-SQLite/PostgreSQL storage, three public exchange adapters, persisted connector
-health, deterministic replay, and explainable statistical rounds.
+SQLite/PostgreSQL storage, three exchange adapters, Chainlink/Pyth oracle reads,
+a Uniswap v3 pool adapter, persisted connector health, deterministic replay, and
+explainable statistical rounds with retained source provenance.
 Consensus, trust scores, the dashboard, and contracts are
 tracked in [the roadmap](docs/ROADMAP.md). The feed endpoint returns an explicit
 unavailable response until consensus exists.
@@ -40,9 +41,12 @@ In another terminal, after setting the same uv environment variables:
 uv run --no-sync verdict ingest --once
 uv run --no-sync verdict ingest
 uv run --no-sync verdict ingest --source kraken --once
+uv run --no-sync verdict ingest --source chainlink --once
+uv run --no-sync verdict ingest --source pyth --once
+uv run --no-sync verdict ingest --source uniswap_v3 --once
 ```
 
-The first command polls all three exchanges once; the second polls until Ctrl+C.
+The first command polls all six providers once; the second polls until Ctrl+C.
 Each provider runs independently. A failed provider does not discard other
 providers' observations. One-shot mode reports each result and exits unsuccessfully
 if any provider fails. Continuous workers retry with capped exponential backoff
@@ -58,6 +62,18 @@ and is identified as `binance_us`, distinct from Binance's global USDT markets.
 All three endpoints were reachable during local validation; availability and trade
 freshness can differ. HTTP success does not imply a fresh underlying trade.
 
+Chainlink and Uniswap use read-only Ethereum mainnet JSON-RPC requests pinned to
+one canonical block hash. Configure `VERDICT_ETHEREUM_RPC_URL` with a provider
+supporting EIP-1898; `VERDICT_ETHEREUM_BLOCK_TAG` selects `latest`, `safe`, or
+`finalized`. On-chain workers poll every 15 seconds by default. Uniswap reads the
+USDC/WETH 0.05% v3 pool and explicitly converts USDC to USD with a same-block
+Chainlink feed. Pyth reads Hermes ETH/USD and retains its update bytes as
+unverified evidence. Set `VERDICT_PYTH_API_KEY` in your environment or local `.env`
+for authenticated Hermes access. `VERDICT_PYTH_HERMES_URL` overrides the service.
+Missing credentials/provider failures are reported independently; one-shot `all`
+exits unsuccessfully if any source fails. See [adapter details](docs/ORACLE_ADAPTERS.md)
+for evidence boundaries and operating limits.
+
 ## API
 
 | Route | Behavior |
@@ -72,7 +88,8 @@ freshness can differ. HTTP success does not imply a fresh underlying trade.
 | `GET /v1/rounds/{round_id}` | One saved round, scoped to the selected dataset |
 | `GET /v1/feed/ETH-USD` | HTTP 503 with null value/confidence until consensus is built |
 
-Observation queries support `asset=ETH-USD`, `source=coinbase|kraken|binance_us`,
+Observation queries support `asset=ETH-USD`,
+`source=coinbase|kraken|binance_us|chainlink|pyth|uniswap_v3`,
 and `limit=1..1000`. Prices are JSON
 strings to preserve decimal precision. `latency_ms` measures the HTTP request
 duration, not the age of the provider's trade. A repeated trade is stored once;
@@ -93,6 +110,11 @@ rows. The baseline includes a duplicate and an out-of-order arrival. The origina
 single-source fixtures cannot establish cross-source agreement. Multi-provider
 fixtures below exercise the statistical engine.
 Historical fixtures naturally show as stale in the current-time source endpoint.
+
+`six-provider.json` adds synthetic ABI evidence for Chainlink and Uniswap plus a
+Pyth Hermes response. Replay it and analyze at `2026-10-16T00:00:10Z` to exercise
+all six sources, source provenance, and explicit USD conversion. It is synthetic
+test data; the Pyth binary is a placeholder and is not a verified update.
 
 The provider payload is retained, but not the original HTTP byte stream or headers.
 Kraken fractional epoch numbers are decoded as strings to preserve their lexical

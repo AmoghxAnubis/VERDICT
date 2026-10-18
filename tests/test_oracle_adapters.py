@@ -157,6 +157,8 @@ def test_rpc_quantities_are_canonical(value):
 
 
 def test_abi_rejects_trailing_bytes_and_invalid_encoding():
+    assert call_data("latestRoundData()") == "0xfeaf968c"
+    assert call_data("decimals()") == "0x313ce567"
     assert decode_return(("uint8",), abi(("uint8",), (8,))) == (8,)
     for value in ("0x", "0xzz", abi(("uint8",), (8,)) + "00" * 32):
         with pytest.raises(ValueError, match="ABI"):
@@ -232,6 +234,31 @@ def test_pyth_uses_configured_endpoint_and_keeps_key_out_of_evidence(evidence):
             assert "test-secret" not in row.model_dump_json()
 
     asyncio.run(run())
+
+
+def test_pyth_authentication_failure_is_recorded_without_leaking_credentials(store, monkeypatch):
+    original_client = httpx.AsyncClient
+
+    def handler(request):
+        assert request.headers["Authorization"] == "Bearer test-secret"
+        return httpx.Response(401, json={"error": "unauthorized"})
+
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: original_client(**kwargs, transport=httpx.MockTransport(handler)),
+    )
+    with pytest.raises(httpx.HTTPStatusError):
+        asyncio.run(
+            ingest_source(
+                "pyth", store, Settings(_env_file=None, pyth_api_key="test-secret"), once=True
+            )
+        )
+    assert store.list() == []
+    health = store.health()["pyth"]
+    assert health["last_http_status"] == 401
+    assert health["last_error_type"] == "HTTPStatusError"
+    assert "test-secret" not in str(health)
 
 
 @pytest.mark.parametrize(
@@ -326,6 +353,17 @@ def test_same_timestamp_uses_provider_sequence_in_storage_and_analysis(store, ev
     assert snapshot == [rows[-1]]
     with pytest.raises(ObservationConflict):
         store.add(rows[-1].model_copy(update={"event_sequence": 1}))
+
+
+def test_invalid_oracle_evidence_rolls_back_entire_replay(store, tmp_path):
+    scenario = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    scenario["events"][-1]["payload"]["conversion_max_age_seconds"] = 1
+    path = tmp_path / "invalid-oracle.json"
+    path.write_text(json.dumps(scenario), encoding="utf-8")
+    with pytest.raises(ValueError, match="conversion feed is stale"):
+        replay(path, store)
+    assert store.list(dataset="replay:six-provider") == []
+    assert store.health() == {}
 
 
 def test_onchain_workers_use_slower_interval_for_poll_and_retry(store, evidence, monkeypatch):

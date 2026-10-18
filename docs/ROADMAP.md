@@ -15,8 +15,8 @@
 
 - [ ] Add Coinbase streaming with reconnect and REST gap recovery.
 - [x] Add Kraken and Binance.US direct ETH/USD adapters; verify provider availability.
-- [ ] Add Chainlink/Pyth reads and one well-defined Uniswap pool adapter.
-- [ ] Preserve chain, block/hash/finality, pair conversion, and lineage metadata.
+- [x] Add Chainlink/Pyth reads and one well-defined Uniswap pool adapter.
+- [x] Preserve chain, block/hash/finality, pair conversion, and lineage metadata.
 - [x] Add persisted connector health, received/error counts, and consecutive failures.
 - [ ] Add Redis Streams with idempotent consumers and pending-message recovery.
 - [x] Define synchronized round cutoffs and observation windows, including receipt-time filtering.
@@ -26,11 +26,16 @@
 
 Gate: comparable observations from six providers; explainable anomaly decisions.
 
-The exchange/statistics slice is implemented. Six-provider coverage, streaming,
-chain metadata, Redis recovery, and historical calibration remain open. Binance.US
+Six adapters, block-pinned oracle/DEX reads, retained provenance, and six-provider
+synthetic replay are implemented. Live six-provider availability and historical
+calibration remain unverified; streaming and Redis recovery remain open. Binance.US
 is a distinct USD venue, not an implicit conversion of Binance ETH/USDT. A live
 check found its latest trade stale despite HTTP 200; the engine correctly withheld
 a three-source baseline instead of relaxing freshness requirements.
+Pyth Hermes requires a configured API key. Chainlink's update cadence can exceed
+the current 30-second freshness policy; a successful oracle read can remain stale.
+The six-provider replay passes diagnostics but does not establish independent
+upstream domains, calibrated confidence, or publication readiness.
 
 ## Batch 3: dependencies, trust, consensus, confidence
 

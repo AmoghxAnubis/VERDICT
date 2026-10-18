@@ -21,8 +21,11 @@ ML, staking/slashing, ZK proofs, TEEs, AVS, and non-price resolution are outside
 - Dataset: `live` or `replay:<scenario>`. Live is the API default; replay cannot
   write into live. Scenario names are lowercase letters/numbers, `_`, or `-`.
 - Providers: Coinbase Exchange public ETH-USD ticker, Kraken XETHZUSD recent trades,
-  and Binance.US ETHUSD recent trades. All adapters report the last trade price.
-  They do not establish independent upstream domains by provider count alone.
+  Binance.US ETHUSD recent trades, Chainlink ETH/USD, Pyth Hermes ETH/USD, and
+  Uniswap v3 USDC/WETH 0.05% with same-block Chainlink USDC/USD conversion.
+  Exchanges report last trades; Uniswap reports pool spot; oracle update cadence
+  differs. See [adapter evidence](ORACLE_ADAPTERS.md). Provider count does not
+  establish independent upstream domains.
 - Value: positive finite decimal, up to 38 digits and 18 fractional places.
   Binary floating-point prices are rejected; JSON output uses decimal strings.
 - Time: provider event time and receipt time are both timezone-aware, normalized
@@ -32,8 +35,10 @@ ML, staking/slashing, ZK proofs, TEEs, AVS, and non-price resolution are outside
 - Storage: first receipt and raw JSON object retained per unique trade event.
   A duplicate does not overwrite evidence. Reusing an identity with a changed
   price or event timestamp is rejected and surfaced as a conflict.
-- Ordering: provider event timestamp, with observation ID as a deterministic tie
-  breaker. Out-of-order arrivals never replace a newer event as the latest.
+- Ordering: provider event timestamp, then provider sequence, then observation ID
+  as a deterministic tie breaker. Sequence is the Pyth slot or Uniswap block
+  number and defaults to zero for providers without a sequence. Out-of-order
+  arrivals never replace a newer event as the latest.
 - Clock policy: the live connector rejects timestamps more than five seconds in
   the future by default. Old data is retained as evidence and marked stale.
 - Freshness: source age is computed from event time. The initial 30-second limit

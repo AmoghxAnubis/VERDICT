@@ -1,4 +1,4 @@
-# Statistical analysis policy: statistics-v1
+# Statistical analysis policy: statistics-v2
 
 This implementation produces diagnostic rounds. It does not produce a VERDICT
 consensus price, trust score, probability of correctness, or permission to publish.
@@ -7,8 +7,9 @@ consensus price, trust score, probability of correctness, or permission to publi
 ## Input boundary and repeatability
 
 A round fixes dataset, ETH-USD asset, timezone-aware UTC cutoff, source roster,
-history window, freshness/clock policy, and algorithm version. Defaults are three
-sources (Coinbase, Kraken, Binance.US), 300 seconds of history, 30 seconds of
+history window, freshness/clock policy, and algorithm version. Defaults are six
+sources (Coinbase, Kraken, Binance.US, Chainlink, Pyth, Uniswap v3),
+300 seconds of history, 30 seconds of
 freshness, five seconds of permitted future clock skew, and 10,000 observations.
 The CLI/API use configured freshness and clock bounds.
 
@@ -19,11 +20,16 @@ source's latest eligible observation and history since window start minus the
 freshness interval, so a preceding price can seed TWAP only while it remains fresh.
 Exceeding the observation limit fails explicitly; results are never silently truncated.
 
-Source/event-time/observation-ID ordering resolves ties deterministically. Decimal
+Source/event-time/provider-sequence/observation-ID ordering resolves ties deterministically. Decimal
 arithmetic uses local precision 60. Policy and report hashes use sorted-key JSON;
 round identities include cutoff, policy, selected input IDs, and measurements.
 CLI analysis saves an immutable report; API analysis is read-only. Live is the
 default dataset for both observations and round history.
+
+Version 2 adds the six-source default roster, sequence ordering for same-time
+updates, and selected oracle/DEX provenance in source explanations. Saved version 1
+rounds remain readable with their original policy and IDs. Existing exchange-only
+fixtures still have three providers; absent oracle/DEX sources are reported as missing.
 
 ## Eligibility and cross-source diagnostics
 
@@ -78,6 +84,7 @@ deterministic tie-break as latest selection.
 | single-outlier | 00:00:10 | +35% source excluded; insufficient remaining sources |
 | market-jump | 00:00:10 | All rise 10%; velocity signals, no cross-source exclusions |
 | provider-outage | 00:00:40 | Old Binance.US trade stale; insufficient sources |
+| six-provider | 00:00:10 | Six synthetic inliers, analyzed; provenance retained |
 
 Additional automated checks cover zero MAD with a small tick difference, delayed
 receipt, future event time, no data, stale TWAP gaps, deterministic input ordering,
@@ -99,3 +106,8 @@ and consecutive failures. Successful duplicate polls increment receipts without
 changing original observation timestamps or evidence. Health and successful inserts
 commit together. Errors retain only their type and HTTP status, not credentials or
 provider response bodies. Replay cannot modify live connector counters.
+
+The [oracle/DEX adapters](ORACLE_ADAPTERS.md) retain block tags/hashes, dependency
+labels, and conversion evidence. The global freshness bound still applies to every
+source; oracle cadence and finality delay can make otherwise valid reads stale.
+No source-specific relaxation or independence claim is inferred from six adapters.

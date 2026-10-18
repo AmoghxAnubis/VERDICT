@@ -49,3 +49,49 @@ def test_upgrade_backfills_receipt_time_without_changing_existing_evidence(
     finally:
         engine.dispose()
         get_settings.cache_clear()
+
+
+def test_sequence_upgrade_backfills_existing_payload_and_preserves_evidence(
+    tmp_path, monkeypatch, observation
+):
+    database_url = f"sqlite:///{(tmp_path / 'sequence-upgrade.db').as_posix()}"
+    monkeypatch.setenv("VERDICT_DATABASE_URL", database_url)
+    get_settings.cache_clear()
+    engine = build_engine(database_url)
+    sequenced = observation.model_copy(update={"event_sequence": 777000001})
+    try:
+        config = Config("alembic.ini")
+        command.upgrade(config, "0002")
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "INSERT INTO observations "
+                    "(id,dataset,source,asset,timestamp,received_at,payload) "
+                    "VALUES (:id,:dataset,:source,:asset,:timestamp,:received_at,:payload)"
+                ),
+                {
+                    "id": sequenced.observation_id,
+                    "dataset": sequenced.dataset,
+                    "source": sequenced.source,
+                    "asset": sequenced.asset,
+                    "timestamp": sequenced.timestamp.strftime("%Y-%m-%d %H:%M:%S.%f"),
+                    "received_at": sequenced.received_at.strftime("%Y-%m-%d %H:%M:%S.%f"),
+                    "payload": sequenced.model_dump_json(),
+                },
+            )
+        command.upgrade(config, "head")
+        command.check(config)
+        store = ObservationStore(engine)
+        assert store.list(dataset=sequenced.dataset) == [sequenced]
+        with engine.connect() as connection:
+            sequence, payload = connection.execute(
+                text("SELECT event_sequence,payload FROM observations")
+            ).one()
+            assert sequence == sequenced.event_sequence
+            assert payload == sequenced.model_dump_json()
+        command.downgrade(config, "0002")
+        command.upgrade(config, "head")
+        assert store.list(dataset=sequenced.dataset) == [sequenced]
+    finally:
+        engine.dispose()
+        get_settings.cache_clear()
