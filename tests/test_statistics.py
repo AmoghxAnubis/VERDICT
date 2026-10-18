@@ -24,7 +24,8 @@ def test_healthy_three_source_round_has_explanations(market_observation):
     assert report.mad == Decimal("0.1")
     assert report.fresh_sources == report.inlier_sources == 3
     assert not report.publication_ready
-    assert all(not row.exclusion_reasons for row in report.sources)
+    assert all(not row.exclusion_reasons for row in report.sources[:3])
+    assert all(row.exclusion_reasons == ["missing"] for row in report.sources[3:])
 
 
 def test_zero_mad_still_rejects_extreme_source(market_observation):
@@ -57,8 +58,8 @@ def test_market_wide_jump_is_signal_not_automatic_exclusion(market_observation):
     report = evaluate(rows, at=2)
     assert report.status == "analyzed"
     assert report.median_reference == 110
-    assert all(row.signals == ["high_price_velocity"] for row in report.sources)
-    assert all(row.exclusion_reasons == [] for row in report.sources)
+    assert all(row.signals == ["high_price_velocity"] for row in report.sources[:3])
+    assert all(row.exclusion_reasons == [] for row in report.sources[:3])
 
 
 def test_fewer_than_three_sources_does_not_invent_a_baseline(market_observation):

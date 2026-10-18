@@ -32,7 +32,7 @@ def test_real_adapter_replays_have_expected_outcomes(store, scenario, at, status
     if scenario == "provider-outage":
         assert report.sources[2].exclusion_reasons == ["stale"]
     if scenario == "market-jump":
-        assert all(row.signals == ["high_price_velocity"] for row in report.sources)
+        assert all(row.signals == ["high_price_velocity"] for row in report.sources[:3])
 
 
 def test_analysis_endpoint_is_read_only_and_persisted_rounds_are_isolated(store):
