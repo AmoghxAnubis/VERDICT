@@ -138,7 +138,8 @@ def validate_subscription(payload: dict) -> None:
     names = {
         channel.get("name")
         for channel in channels
-        if isinstance(channel, dict) and channel.get("product_ids") == ["ETH-USD"]
+        if isinstance(channel, dict)
+        and channel.get("product_ids") == ["ETH-USD"]
         and channel.get("name") in ("matches", "heartbeat")
     }
     if not {"matches", "heartbeat"}.issubset(names):
