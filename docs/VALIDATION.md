@@ -68,6 +68,11 @@ Validated on 2026-10-18 using the project-local Python 3.12 runtime.
   on-chain polling/retry intervals, and atomic rejection of malformed replay data.
 - The dependency lock includes the Ethereum Keccak backend (`pycryptodome`),
   required for contract-call selectors in fresh installs.
+- Actual CLI migration, replay, repeat import, fixed-cutoff analysis, and ingestion
+  help checks pass against an isolated SQLite database. The original baseline
+  checksum remains `77a5b28237b9d24a61cca41b9199f2118a613fb89b3ae5c421f8e5935d672cf6`;
+  six-provider replay yields
+  `485eede9dad563aa1db6321364c3be1b01f556a636887abdce64ab3bd57c82e1`.
 
 The new live oracle/DEX endpoints have not been exercised in this validation.
 Pyth requires an API key; RPC service support and availability must be checked in
