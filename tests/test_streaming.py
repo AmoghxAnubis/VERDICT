@@ -191,6 +191,25 @@ def test_rest_lagging_heartbeat_target_does_not_advance_checkpoint(store):
     assert store.stream_states()["coinbase"]["last_trade_id"] == 100
 
 
+def test_conflicting_trigger_match_cannot_advance_recovery(store):
+    bootstrap(store)
+
+    async def run():
+        client, _ = recovery_client([([100], None), ([103, 102, 101], None)])
+        async with client:
+            with pytest.raises(RecoveryGap, match="conflicts with the triggering match"):
+                await coinbase_stream_session(
+                    Socket([ACK, trade(103, "200", stream=True)]),
+                    client,
+                    store,
+                    Settings(_env_file=None),
+                )
+
+    asyncio.run(run())
+    assert store.stream_states()["coinbase"]["last_trade_id"] == 100
+    assert len(store.list()) == 1
+
+
 def test_conflicting_recovery_rolls_back_checkpoint_batch_and_health(store):
     bootstrap(store)
     store.add(observation(102, "200"))
@@ -454,3 +473,19 @@ def test_all_mode_keeps_other_workers_independent(store, monkeypatch):
 
     asyncio.run(run())
     assert set(reached) == {"coinbase", "kraken", "binance_us", "chainlink", "pyth", "uniswap_v3"}
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        ["--coinbase-stream", "--once"],
+        ["--coinbase-stream", "--source", "kraken"],
+    ],
+)
+def test_cli_rejects_incompatible_stream_arguments(monkeypatch, arguments):
+    from verdict.cli import main
+
+    monkeypatch.setattr("sys.argv", ["verdict", "ingest", *arguments])
+    with pytest.raises(SystemExit) as error:
+        main()
+    assert error.value.code == 2

@@ -44,6 +44,18 @@ def test_postgres_migration_and_storage_contract(observation, monkeypatch):
         assert store.record_attempt("kraken", observation=live)
         assert not store.record_attempt("kraken", observation=live)
         assert store.health()["kraken"]["consecutive_failures"] == 0
+        store.set_coinbase_stream_status("recovering")
+        previous = store.stream_states()["coinbase"]["last_trade_id"]
+        trade_id = previous + 1 if previous is not None else 100
+        streamed = observation.model_copy(
+            update={
+                "dataset": "live",
+                "source": "coinbase",
+                "provider_event_id": str(trade_id),
+            }
+        )
+        assert store.record_coinbase_stream_batch([streamed], expected_trade_id=previous) == 1
+        assert store.stream_states()["coinbase"]["last_trade_id"] == trade_id
     finally:
         engine.dispose()
         get_settings.cache_clear()

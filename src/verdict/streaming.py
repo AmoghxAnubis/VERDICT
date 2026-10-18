@@ -44,6 +44,7 @@ async def recover_coinbase(
     settings: Settings,
     *,
     required_trade_id: int | None = None,
+    required_observation: Observation | None = None,
 ) -> int:
     """Fetch newest-to-oldest pages; commit only a complete contiguous range."""
     await asyncio.to_thread(store.set_coinbase_stream_status, "recovering")
@@ -117,6 +118,13 @@ async def recover_coinbase(
                 or ordered_ids[-1] != target
             ):
                 raise RecoveryGap("REST recovery contains missing trade IDs")
+            if required_observation is not None:
+                recovered = collected.get(int(required_observation.provider_event_id))
+                if recovered is None or (recovered.value, recovered.timestamp) != (
+                    required_observation.value,
+                    required_observation.timestamp,
+                ):
+                    raise RecoveryGap("REST recovery conflicts with the triggering match")
             await asyncio.to_thread(
                 store.record_coinbase_stream_batch,
                 [collected[trade_id] for trade_id in ordered_ids],
@@ -215,7 +223,11 @@ async def coinbase_stream_session(
             trade_id = int(observation.provider_event_id)
             if trade_id > checkpoint + 1:
                 checkpoint = await recover_coinbase(
-                    client, store, settings, required_trade_id=trade_id
+                    client,
+                    store,
+                    settings,
+                    required_trade_id=trade_id,
+                    required_observation=observation,
                 )
                 await asyncio.to_thread(store.set_coinbase_stream_status, "streaming")
                 heartbeat_deadline = loop.time() + settings.coinbase_stream_timeout_seconds

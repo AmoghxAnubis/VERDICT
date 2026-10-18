@@ -5,6 +5,7 @@ from alembic.config import Config
 from sqlalchemy import text
 
 from verdict.config import get_settings
+from verdict.statistics import analyze
 from verdict.storage import ObservationStore, build_engine
 
 
@@ -46,6 +47,36 @@ def test_upgrade_backfills_receipt_time_without_changing_existing_evidence(
             history_seconds=300,
             freshness_seconds=30,
         ) == [observation]
+    finally:
+        engine.dispose()
+        get_settings.cache_clear()
+
+
+def test_stream_checkpoint_upgrade_preserves_existing_evidence_health_and_rounds(
+    tmp_path, monkeypatch, observation
+):
+    database_url = f"sqlite:///{(tmp_path / 'stream-upgrade.db').as_posix()}"
+    monkeypatch.setenv("VERDICT_DATABASE_URL", database_url)
+    get_settings.cache_clear()
+    engine = build_engine(database_url)
+    try:
+        config = Config("alembic.ini")
+        command.upgrade(config, "0003")
+        store = ObservationStore(engine)
+        store.add(observation)
+        store.record_attempt("coinbase", error_type="ConnectError")
+        report = analyze([observation], dataset=observation.dataset, cutoff=observation.received_at)
+        store.save_round(report)
+        health = store.health()
+        command.upgrade(config, "head")
+        command.check(config)
+        store.check_ready()
+        assert store.list(dataset=observation.dataset) == [observation]
+        assert store.health() == health
+        assert store.get_round(report.round_id, dataset=observation.dataset) == report.model_dump(
+            mode="json"
+        )
+        assert store.stream_states() == {}
     finally:
         engine.dispose()
         get_settings.cache_clear()
