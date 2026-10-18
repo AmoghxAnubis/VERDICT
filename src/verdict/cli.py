@@ -29,6 +29,11 @@ def main() -> None:
     ingest = commands.add_parser("ingest", help="Poll ETH/USD exchanges, oracles, and the DEX pool")
     ingest.add_argument("--source", choices=["all", *SOURCES], default="all")
     ingest.add_argument("--once", action="store_true")
+    ingest.add_argument(
+        "--coinbase-stream",
+        action="store_true",
+        help="Stream Coinbase matches with REST gap recovery",
+    )
     replay_parser = commands.add_parser("replay", help="Replay a fixture into isolated storage")
     replay_parser.add_argument("scenario", type=Path)
     analysis = commands.add_parser("analyze", help="Persist an explainable statistical round")
@@ -36,7 +41,14 @@ def main() -> None:
     analysis.add_argument("--at", help="Timezone-aware cutoff, e.g. 2026-10-16T00:00:10Z")
     analysis.add_argument("--window", type=int, default=300, help="History window in seconds")
     args = parser.parse_args()
+    if args.command == "ingest" and args.coinbase_stream:
+        if args.once or args.source not in ("all", "coinbase"):
+            parser.error(
+                "--coinbase-stream requires continuous ingestion with --source all or coinbase"
+            )
     settings = get_settings()
+    if args.command == "ingest" and args.coinbase_stream:
+        settings = settings.model_copy(update={"coinbase_stream_enabled": True})
     logging.basicConfig(level=settings.log_level, format="%(asctime)s %(levelname)s %(message)s")
 
     if args.command == "serve":

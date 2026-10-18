@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 
 import httpx
+from websockets.exceptions import InvalidStatus
 
 from verdict.config import Settings
 from verdict.connectors.registry import build_connector, poll_interval
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 def retry_delay(error: Exception, failures: int, minimum: float) -> float:
     delay = max(minimum, min(60, 2 ** min(failures, 6)))
-    if isinstance(error, httpx.HTTPStatusError):
+    if isinstance(error, (httpx.HTTPStatusError, InvalidStatus)):
         value = error.response.headers.get("Retry-After")
         if value:
             try:
@@ -38,6 +39,11 @@ async def ingest_source(
     once: bool = False,
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
 ) -> dict:
+    if source == "coinbase" and settings.coinbase_stream_enabled and not once:
+        from verdict.streaming import ingest_coinbase_stream
+
+        await ingest_coinbase_stream(store, settings, sleep=sleep)
+        return {}
     failures = 0
     async with httpx.AsyncClient(
         timeout=settings.request_timeout_seconds, headers={"User-Agent": "VERDICT/0.1.0"}

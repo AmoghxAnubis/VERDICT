@@ -12,9 +12,14 @@ BASE_URL = "https://api.exchange.coinbase.com"
 
 
 class CoinbaseTicker(BaseModel):
-    trade_id: int = Field(ge=0, strict=True)
+    trade_id: int = Field(ge=0, le=9223372036854775807, strict=True)
     price: PositiveDecimal
     time: AwareDatetime
+
+
+class CoinbaseMatch(CoinbaseTicker):
+    type: Literal["match", "last_match"]
+    product_id: Literal["ETH-USD"]
 
 
 def normalize_ticker(
@@ -30,6 +35,8 @@ def normalize_ticker(
         raise ValueError("expected a Coinbase ticker object")
     if isinstance(payload.get("price"), (float, bool)):
         raise ValueError("Coinbase price must be a decimal string")
+    if "type" in payload or "product_id" in payload:
+        CoinbaseMatch.model_validate(payload)
     ticker = CoinbaseTicker.model_validate(payload)
     return Observation(
         dataset=dataset,

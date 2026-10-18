@@ -70,6 +70,7 @@ def create_app(settings: Settings | None = None, store: ObservationStore | None 
     def sources(dataset: Dataset = "live") -> list[dict]:
         now = datetime.now(UTC)
         health = store.health() if dataset == "live" else {}
+        stream_states = store.stream_states() if dataset == "live" else {}
         results = []
         for source in SOURCES:
             observations = store.list(dataset=dataset, source=source, limit=1)
@@ -91,6 +92,7 @@ def create_app(settings: Settings | None = None, store: ObservationStore | None 
                     "latest_timestamp": latest.timestamp if latest else None,
                     "trust_score": None,
                     "connector_health": health.get(source),
+                    "stream": stream_states.get(source),
                 }
             )
         return results

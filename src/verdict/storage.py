@@ -2,6 +2,7 @@ import json
 from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
+from itertools import pairwise
 from pathlib import Path
 
 from sqlalchemy import (
@@ -329,7 +330,7 @@ class ObservationStore:
                 raise ValueError("initial bootstrap must contain one baseline trade")
         elif trade_ids[0] != expected_trade_id + 1:
             raise ValueError("stream batch does not continue its checkpoint")
-        if any(current != previous + 1 for previous, current in zip(trade_ids, trade_ids[1:])):
+        if any(current != previous + 1 for previous, current in pairwise(trade_ids)):
             raise ValueError("stream batch has a missing, repeated, or unordered trade ID")
         with self.session() as session, session.begin():
             # A conditional update also serializes competing writers on PostgreSQL/SQLite.
