@@ -56,6 +56,11 @@ def main() -> None:
         historical.add_argument("captures", type=Path)
         if action == "evaluate":
             historical.add_argument("--output", type=Path, required=True)
+            historical.add_argument(
+                "--require-targets",
+                action="store_true",
+                help="Exit unsuccessfully after writing results if held-out targets are unmet",
+            )
     args = parser.parse_args()
     if args.command == "history":
         if args.history_action == "fetch":
@@ -69,6 +74,8 @@ def main() -> None:
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
             print(json.dumps({"report_id": report["report_id"], "output": str(args.output)}))
+            if args.require_targets and not report["heldout_targets_met"]:
+                raise SystemExit(1)
         return
     if args.command == "ingest" and args.coinbase_stream:
         if args.once or args.source not in ("all", "coinbase"):

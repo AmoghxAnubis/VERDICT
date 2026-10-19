@@ -168,6 +168,19 @@ deterministic round ID. All diagnostic reports have `publication_ready=false`.
 See [the statistical policy](docs/STATISTICAL_ENGINE.md) for formulas, assumptions,
 and fixture acceptance criteria.
 
+## Historical evaluation
+
+Retained public ETH/USD trade windows support offline comparison of the frozen
+statistical policy, with separate calibration/holdout periods and explicit
+spike, coordinated-move, correlated-shift, outage, and late-receipt interventions:
+
+```powershell
+uv run --no-sync verdict history evaluate benchmarks/historical-v1.json benchmarks/captures --output .cache/historical-report.json
+```
+
+Historical receipt times are assumed, gaps remain missing, and the result does not
+enable publication. See [methods and results](docs/HISTORICAL_VALIDATION.md).
+
 ## PostgreSQL and Docker
 
 ```powershell

@@ -416,3 +416,73 @@ def test_frozen_suite_and_real_archives_remain_readable():
             assert all(row.received_at >= row.timestamp for row in rows)
             count += len(rows)
     assert count > 1000
+
+
+def test_strict_history_cli_writes_failed_report_before_exiting(historical_files, monkeypatch):
+    from verdict.cli import main
+
+    suite, path, directory = historical_files
+    case = suite.cases[1]
+    archive = capture_path(directory, case, "binance_us")
+    data = read_capture(directory, case, "binance_us")
+    data["pages"][0].update(body="[]", body_sha256=hashlib.sha256(b"[]").hexdigest())
+    archive.write_bytes(gzip.compress(json.dumps(data).encode(), mtime=0))
+    output = directory / "failed-report.json"
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "verdict",
+            "history",
+            "evaluate",
+            str(path),
+            str(directory),
+            "--output",
+            str(output),
+            "--require-targets",
+        ],
+    )
+    with pytest.raises(SystemExit) as error:
+        main()
+    assert error.value.code == 1
+    assert json.loads(output.read_text())["heldout_targets_met"] is False
+
+
+def test_retained_report_hashes_and_real_rounds_reproduce():
+    from verdict.historical import load_suite
+    from verdict.statistics import digest
+
+    report = json.loads(Path("benchmarks/results/historical-v1.json").read_text())
+    assert (
+        digest({key: value for key, value in report.items() if key != "report_id"})
+        == report["report_id"]
+    )
+    suite = load_suite(Path("benchmarks/historical-v1.json"))
+    assert report["suite_sha256"] == suite.sha256
+    source_dir = Path("src/verdict")
+    for name, expected in report["code_sha256"].items():
+        assert (
+            hashlib.sha256((source_dir / name).read_text(encoding="utf-8").encode()).hexdigest()
+            == expected
+        )
+    for name, expected in report["capture_sha256"].items():
+        assert (
+            hashlib.sha256((Path("benchmarks/captures") / name).read_bytes()).hexdigest()
+            == expected
+        )
+    for case, retained in zip(suite.cases, report["cases"], strict=True):
+        rows = [
+            row
+            for source in EXCHANGE_SOURCES
+            for row in load_capture(
+                read_capture(Path("benchmarks/captures"), case, source), suite, case, source
+            )
+        ]
+        for expected in (retained["baseline"]["rounds"][0], retained["baseline"]["rounds"][-1]):
+            cutoff = datetime.fromisoformat(expected["cutoff"])
+            one_cutoff = case.model_copy(
+                update={"start": cutoff, "end": cutoff + timedelta(seconds=1)}
+            )
+            actual = historical_rounds(intervene(rows, case, None), suite, one_cutoff, "baseline")[
+                0
+            ]
+            assert actual.round_id == expected["round_id"]

@@ -113,3 +113,13 @@ The [oracle/DEX adapters](ORACLE_ADAPTERS.md) retain block tags/hashes, dependen
 labels, and conversion evidence. The global freshness bound still applies to every
 source; oracle cadence and finality delay can make otherwise valid reads stale.
 No source-specific relaxation or independence claim is inferred from six adapters.
+
+## Historical evaluation
+
+The frozen [historical suite](HISTORICAL_VALIDATION.md) now exercises this policy
+against retained public exchange trades and explicit interventions. Its held-out
+availability, disagreement, and conditional attack metrics are retained with
+input/code/policy hashes and round IDs. Missing venues stay missing, receipt times
+are explicitly assumed, and coordinated-step exclusions and majority shifts are
+reported. These measurements have not calibrated the default thresholds, enabled
+confidence, or completed the six-provider validation gate.

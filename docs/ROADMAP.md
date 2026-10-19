@@ -41,6 +41,15 @@ the current 30-second freshness policy; a successful oracle read can remain stal
 The six-provider replay passes diagnostics but does not establish independent
 upstream domains, calibrated confidence, or publication readiness.
 
+Frozen exchange-only historical evaluation is now implemented: 21,000 retained
+records, one calibration window, three held-out windows, and 1,440 diagnostic
+rounds with paired interventions. March/April holdouts meet the three development
+targets; the August stress holdout has no Binance.US ETHUSD records and stays
+unavailable. Coordinated moves also produce transient exclusions. Historical
+calibration remains open: no threshold was retuned, receipt times are assumed,
+and historical oracle/DEX evidence and broader untouched regimes remain necessary.
+See [methods and measured results](HISTORICAL_VALIDATION.md).
+
 ## Batch 3: dependencies, trust, consensus, confidence
 
 - [ ] Registry of known/unknown upstream dependencies with evidence and versions.
