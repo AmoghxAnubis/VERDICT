@@ -48,7 +48,28 @@ def main() -> None:
     analysis.add_argument("--dataset", default="live")
     analysis.add_argument("--at", help="Timezone-aware cutoff, e.g. 2026-10-16T00:00:10Z")
     analysis.add_argument("--window", type=int, default=300, help="History window in seconds")
+    history = commands.add_parser("history", help="Capture and evaluate frozen historical suites")
+    history_commands = history.add_subparsers(dest="history_action", required=True)
+    for action in ("fetch", "evaluate"):
+        historical = history_commands.add_parser(action)
+        historical.add_argument("suite", type=Path)
+        historical.add_argument("captures", type=Path)
+        if action == "evaluate":
+            historical.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    if args.command == "history":
+        if args.history_action == "fetch":
+            from verdict.historical import fetch_history
+
+            asyncio.run(fetch_history(args.suite, args.captures))
+        else:
+            from verdict.benchmark import evaluate_history
+
+            report = evaluate_history(args.suite, args.captures)
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+            print(json.dumps({"report_id": report["report_id"], "output": str(args.output)}))
+        return
     if args.command == "ingest" and args.coinbase_stream:
         if args.once or args.source not in ("all", "coinbase"):
             parser.error(

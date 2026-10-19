@@ -7,6 +7,7 @@ import json
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from itertools import pairwise
 from pathlib import Path
 from typing import Literal
 
@@ -70,7 +71,7 @@ class HistoricalSuite(BaseModel):
         # Include full warmup in separation: no event can occur in both splits.
         margin = timedelta(seconds=self.policy.history_seconds + self.policy.freshness_seconds)
         ordered = sorted(self.cases, key=lambda case: case.start)
-        if any(left.end > right.start - margin for left, right in zip(ordered, ordered[1:])):
+        if any(left.end > right.start - margin for left, right in pairwise(ordered)):
             raise ValueError("historical cases and warmup histories must not overlap")
         if max(case.end for case in calibration) > min(case.start - margin for case in holdouts):
             raise ValueError("calibration must precede every held-out history")
@@ -155,7 +156,7 @@ class HistoryFetcher:
             ids = [int(row.provider_event_id) for row in rows]
             if ids != list(range(previous - 1, previous - 1 - len(ids), -1)):
                 raise HistoryCaptureError("Coinbase history contains missing or unordered IDs")
-            if any(left.timestamp < right.timestamp for left, right in zip(rows, rows[1:])):
+            if any(left.timestamp < right.timestamp for left, right in pairwise(rows)):
                 raise HistoryCaptureError("Coinbase historical event clock is not monotonic")
             if rows[-1].timestamp <= start:
                 return
@@ -188,8 +189,10 @@ class HistoryFetcher:
 
     async def binance_us(self, start: datetime, end: datetime):
         params = {
-            "symbol": "ETHUSD", "startTime": int(start.timestamp() * 1000),
-            "endTime": int(end.timestamp() * 1000) - 1, "limit": 1000,
+            "symbol": "ETHUSD",
+            "startTime": int(start.timestamp() * 1000),
+            "endTime": int(end.timestamp() * 1000) - 1,
+            "limit": 1000,
         }
         previous = -1
         while True:
@@ -200,8 +203,10 @@ class HistoryFetcher:
                 return
             for item in payload:
                 if (
-                    not isinstance(item, dict) or type(item.get("a")) is not int
-                    or type(item.get("T")) is not int or item["a"] <= previous
+                    not isinstance(item, dict)
+                    or type(item.get("a")) is not int
+                    or type(item.get("T")) is not int
+                    or item["a"] <= previous
                 ):
                     raise HistoryCaptureError("invalid or unordered Binance.US aggregate IDs")
                 previous = item["a"]
@@ -216,9 +221,14 @@ class HistoryFetcher:
         )
         await getattr(self, self.source)(start, case.end)
         return {
-            "version": 1, "suite_sha256": suite.sha256, "case": case.name,
-            "source": self.source, "endpoint": ENDPOINTS[self.source],
-            "start": start.isoformat(), "end": case.end.isoformat(), "pages": self.pages,
+            "version": 1,
+            "suite_sha256": suite.sha256,
+            "case": case.name,
+            "source": self.source,
+            "endpoint": ENDPOINTS[self.source],
+            "start": start.isoformat(),
+            "end": case.end.isoformat(),
+            "pages": self.pages,
         }
 
 
@@ -256,21 +266,28 @@ async def fetch_history(suite_path: Path, directory: Path) -> list[dict]:
         )
     failures = [outcome for outcome in outcomes if isinstance(outcome, Exception)]
     if failures:
-        raise HistoryCaptureError("; ".join(f"{type(error).__name__}: {error}" for error in failures))
+        raise HistoryCaptureError(
+            "; ".join(f"{type(error).__name__}: {error}" for error in failures)
+        )
     return [result for outcome in outcomes for result in outcome]
 
 
 def load_capture(
     data: dict, suite: HistoricalSuite, case: HistoricalCase, source: Exchange
 ) -> list[Observation]:
-    start = case.start - timedelta(seconds=suite.policy.history_seconds + suite.policy.freshness_seconds)
+    start = case.start - timedelta(
+        seconds=suite.policy.history_seconds + suite.policy.freshness_seconds
+    )
     if (
-        data.get("version") != 1 or data.get("suite_sha256") != suite.sha256
-        or data.get("case") != case.name or data.get("source") != source
+        data.get("version") != 1
+        or data.get("suite_sha256") != suite.sha256
+        or data.get("case") != case.name
+        or data.get("source") != source
         or data.get("endpoint") != ENDPOINTS[source]
         or datetime.fromisoformat(data["start"]) != start
         or datetime.fromisoformat(data["end"]) != case.end
-        or not isinstance(data.get("pages"), list) or not data["pages"]
+        or not isinstance(data.get("pages"), list)
+        or not data["pages"]
     ):
         raise HistoryCaptureError("history capture does not match the frozen suite")
     collected: dict[str, Observation] = {}
@@ -282,21 +299,33 @@ def load_capture(
             raise HistoryCaptureError("historical response checksum mismatch")
         payload = json.loads(body, parse_float=str)
         if source == "coinbase":
-            rows = [normalize_ticker(item, dataset=dataset, received_at=case.end, latency_ms=0) for item in payload]
+            rows = [
+                normalize_ticker(item, dataset=dataset, received_at=case.end, latency_ms=0)
+                for item in payload
+            ]
         elif source == "kraken":
             rows = [
                 normalize_trades(
-                    {"error": [], "result": {"XETHZUSD": [item], "last": payload["result"]["last"]}},
-                    dataset=dataset, received_at=case.end, latency_ms=0,
+                    {
+                        "error": [],
+                        "result": {"XETHZUSD": [item], "last": payload["result"]["last"]},
+                    },
+                    dataset=dataset,
+                    received_at=case.end,
+                    latency_ms=0,
                 )
                 for item in payload["result"]["XETHZUSD"]
             ]
         else:
             rows = [
                 Observation(
-                    source="binance_us", dataset=dataset, provider_event_id=f"agg:{item['a']}",
-                    value=item["p"], timestamp=epoch_seconds(Decimal(item["T"]) / 1000),
-                    received_at=case.end, latency_ms=0,
+                    source="binance_us",
+                    dataset=dataset,
+                    provider_event_id=f"agg:{item['a']}",
+                    value=item["p"],
+                    timestamp=epoch_seconds(Decimal(item["T"]) / 1000),
+                    received_at=case.end,
+                    latency_ms=0,
                     raw_payload={"symbol": "ETHUSD", "aggregate_trade": item},
                 )
                 for item in payload
