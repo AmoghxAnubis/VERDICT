@@ -221,6 +221,44 @@ class ObservationStore:
             )
         return bool(inserted)
 
+    def consume_attempt(self, attempt: QueuedAttempt) -> str:
+        """Commit an inbox receipt, observation, and health exactly once per attempt."""
+        from sqlalchemy.dialects.postgresql import insert as postgres_insert
+        from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+        # Revalidate even callers that used model_copy/model_construct.
+        attempt = QueuedAttempt.model_validate_json(attempt.model_dump_json())
+        insert = sqlite_insert if self.engine.dialect.name == "sqlite" else postgres_insert
+        identity = str(attempt.attempt_id)
+        with self.session() as session, session.begin():
+            claimed = session.execute(
+                insert(IngestionReceiptRow)
+                .values(
+                    id=identity,
+                    content_hash=attempt.content_hash,
+                    attempted_at=attempt.attempted_at,
+                    processed_at=datetime.now(UTC),
+                )
+                .on_conflict_do_nothing(index_elements=["id"])
+            ).rowcount
+            if not claimed:
+                previous = session.get(IngestionReceiptRow, identity)
+                if previous.content_hash != attempt.content_hash:
+                    raise AttemptConflict("ingestion attempt identity changed content")
+                return "duplicate_attempt"
+            inserted = self._insert(session, attempt.observation) if attempt.observation else False
+            self._record_health(
+                session,
+                attempt.source,
+                inserted=int(inserted),
+                received=int(attempt.observation is not None),
+                error_type=attempt.error_type,
+                http_status=attempt.http_status,
+            )
+            if attempt.observation is None:
+                return "recorded_error"
+            return "inserted" if inserted else "duplicate_observation"
+
     def _record_health(
         self,
         session: Session,

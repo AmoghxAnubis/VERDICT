@@ -10,6 +10,7 @@ from websockets.exceptions import InvalidStatus
 from verdict.config import Settings
 from verdict.connectors.registry import build_connector, poll_interval
 from verdict.models import SOURCES, Source
+from verdict.queue_models import QueuedAttempt
 from verdict.storage import ObservationStore
 
 logger = logging.getLogger(__name__)
@@ -38,8 +39,13 @@ async def ingest_source(
     *,
     once: bool = False,
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+    publisher: Callable[[QueuedAttempt], Awaitable[str]] | None = None,
 ) -> dict:
+    if settings.ingestion_transport == "redis" and publisher is None:
+        raise ValueError("Redis ingestion requires run_queued_ingestion")
     if source == "coinbase" and settings.coinbase_stream_enabled and not once:
+        if publisher is not None:
+            raise ValueError("Redis transport currently supports polling; disable Coinbase streaming")
         from verdict.streaming import ingest_coinbase_stream
 
         await ingest_coinbase_stream(store, settings, sleep=sleep)
@@ -53,19 +59,28 @@ async def ingest_source(
         while True:
             try:
                 observation = await connector.fetch()
-                inserted = await asyncio.to_thread(
-                    store.record_attempt, source, observation=observation
-                )
+                if publisher is None:
+                    inserted = await asyncio.to_thread(
+                        store.record_attempt, source, observation=observation
+                    )
+                else:
+                    await publisher(QueuedAttempt(source=source, observation=observation))
+                    inserted = None
             except (httpx.HTTPError, ValueError) as error:
                 status = (
                     error.response.status_code if isinstance(error, httpx.HTTPStatusError) else None
                 )
-                await asyncio.to_thread(
-                    store.record_attempt,
-                    source,
-                    error_type=type(error).__name__,
-                    http_status=status,
-                )
+                if publisher is None:
+                    await asyncio.to_thread(
+                        store.record_attempt,
+                        source,
+                        error_type=type(error).__name__,
+                        http_status=status,
+                    )
+                else:
+                    await publisher(
+                        QueuedAttempt(source=source, error_type=type(error).__name__, http_status=status)
+                    )
                 if once:
                     raise
                 failures += 1
@@ -87,6 +102,8 @@ async def ingest_source(
                 inserted,
             )
             if once:
+                if publisher is not None:
+                    return {"source": source, "status": "queued"}
                 return {"source": source, "status": "ok", "inserted": inserted}
             await sleep(interval)
 
@@ -102,13 +119,19 @@ async def ingest_coinbase(
 
 
 async def ingest_all(
-    store: ObservationStore, settings: Settings, *, once: bool = False
+    store: ObservationStore,
+    settings: Settings,
+    *,
+    once: bool = False,
+    publisher: Callable[[QueuedAttempt], Awaitable[str]] | None = None,
 ) -> list[dict]:
     if not once:
-        await asyncio.gather(*(ingest_source(source, store, settings) for source in SOURCES))
+        await asyncio.gather(
+            *(ingest_source(source, store, settings, publisher=publisher) for source in SOURCES)
+        )
         return []
     results = await asyncio.gather(
-        *(ingest_source(source, store, settings, once=True) for source in SOURCES),
+        *(ingest_source(source, store, settings, once=True, publisher=publisher) for source in SOURCES),
         return_exceptions=True,
     )
     return [
