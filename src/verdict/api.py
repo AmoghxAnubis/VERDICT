@@ -12,6 +12,7 @@ from verdict import __version__
 from verdict.config import Settings, get_settings
 from verdict.dependencies import Sha256, inspect_dependencies
 from verdict.models import SOURCES, Asset, Dataset, ObservationData, Source
+from verdict.scoring import ScoringReport
 from verdict.statistics import AnalysisPolicy, AnalysisReport, build_report
 from verdict.storage import ObservationStore, build_engine
 
@@ -130,6 +131,17 @@ def create_app(settings: Settings | None = None, store: ObservationStore | None 
         report = store.get_round(round_id, dataset=dataset)
         if report is None:
             raise HTTPException(404, detail="round not found in selected dataset")
+        return report
+
+    @app.get("/v1/scores", response_model=list[ScoringReport])
+    def scoring_rounds(dataset: Dataset = "live", limit: Annotated[int, Query(ge=1, le=100)] = 10):
+        return store.scoring_rounds(dataset=dataset, limit=limit)
+
+    @app.get("/v1/scores/{report_id}", response_model=ScoringReport)
+    def scoring_detail(report_id: Sha256, dataset: Dataset = "live"):
+        report = store.get_scoring_round(report_id, dataset=dataset)
+        if report is None:
+            raise HTTPException(404, detail="scoring round not found in selected dataset")
         return report
 
     @app.get("/v1/dependencies")

@@ -1,7 +1,7 @@
 """Fixed-grid diagnostic quality scores; no voting weights or truth probabilities."""
 
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal, localcontext
+from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from statistics import median
 from typing import TYPE_CHECKING, Annotated, Literal
 
@@ -50,8 +50,14 @@ class ScoringPolicy(FrozenModel):
         count, remainder = divmod(self.window_seconds, self.step_seconds)
         if remainder or not 1 <= count <= 360:
             raise ValueError("window must contain 1..360 whole sampling steps")
-        if max(self.minimum_fresh_samples, self.minimum_comparisons,
-               self.minimum_unique_observations) > count:
+        if (
+            max(
+                self.minimum_fresh_samples,
+                self.minimum_comparisons,
+                self.minimum_unique_observations,
+            )
+            > count
+        ):
             raise ValueError("cold-start requirements exceed the sampling window")
         return self
 
@@ -108,7 +114,7 @@ class ScoringData(FrozenModel):
     policy_sha256: Sha256
     registry_id: Sha256
     registry_reviewed_at: AwareDatetime
-    registry_known_at_cutoff: bool
+    registry_review_after_cutoff: bool
     input_observation_ids: tuple[Sha256, ...]
     input_sha256: Sha256
     ticks: tuple[ScoringTick, ...]
@@ -154,13 +160,21 @@ def availability(row: Observation | None, cutoff: datetime, timing: SourceTiming
         state = "clock_skew"
     elif age > timing.freshness_seconds:
         state = "stale"
-    freshness = int(Decimal(10000) * (-age / timing.freshness_seconds).exp()) if state == "fresh" else 0
-    return {"observation_id": row.observation_id, "value": row.value, "age_seconds": age,
-            "availability": state, "freshness_bps": freshness}
+    freshness = (
+        int(Decimal(10000) * (-age / timing.freshness_seconds).exp()) if state == "fresh" else 0
+    )
+    return {
+        "observation_id": row.observation_id,
+        "value": row.value,
+        "age_seconds": age,
+        "availability": state,
+        "freshness_bps": freshness,
+    }
 
 
-def summarize(source: Source, ticks: list[ScoringTick], policy: ScoringPolicy,
-              unknowns: tuple[str, ...]) -> SourceScore:
+def summarize(
+    source: Source, ticks: list[ScoringTick], policy: ScoringPolicy, unknowns: tuple[str, ...]
+) -> SourceScore:
     samples = [next(item for item in tick.sources if item.source == source) for tick in ticks]
     fresh = [item for item in samples if item.availability == "fresh"]
     compared = [item for item in samples if item.comparison != "unscored"]
@@ -197,21 +211,37 @@ def summarize(source: Source, ticks: list[ScoringTick], policy: ScoringPolicy,
     if unknowns:
         reasons.append("upstream_dependencies_unresolved")
     return SourceScore(
-        source=source, scheduled_samples=len(samples), fresh_samples=len(fresh),
+        source=source,
+        scheduled_samples=len(samples),
+        fresh_samples=len(fresh),
         missing_samples=sum(item.availability == "missing" for item in samples),
         stale_samples=sum(item.availability == "stale" for item in samples),
         clock_skew_samples=sum(item.availability == "clock_skew" for item in samples),
-        comparisons=len(compared), inlier_samples=inliers, outlier_samples=len(compared) - inliers,
-        unique_fresh_observations=unique, uptime_bps=uptime, mean_freshness_bps=mean_freshness,
-        current_freshness_bps=current.freshness_bps, consistency_bps=consistency,
-        uncapped_score_bps=raw_score, score_bps=score, status=status, cold_start=cold,
-        reasons=tuple(reasons), unknown_dependencies=unknowns,
+        comparisons=len(compared),
+        inlier_samples=inliers,
+        outlier_samples=len(compared) - inliers,
+        unique_fresh_observations=unique,
+        uptime_bps=uptime,
+        mean_freshness_bps=mean_freshness,
+        current_freshness_bps=current.freshness_bps,
+        consistency_bps=consistency,
+        uncapped_score_bps=raw_score,
+        score_bps=score,
+        status=status,
+        cold_start=cold,
+        reasons=tuple(reasons),
+        unknown_dependencies=unknowns,
     )
 
 
-def score_observations(observations: list[Observation], *, dataset: str, cutoff: datetime,
-                       registry: DependencyRegistry, policy: ScoringPolicy | None = None
-                       ) -> ScoringReport:
+def score_observations(
+    observations: list[Observation],
+    *,
+    dataset: str,
+    cutoff: datetime,
+    registry: DependencyRegistry,
+    policy: ScoringPolicy | None = None,
+) -> ScoringReport:
     policy = ScoringPolicy.model_validate(policy or ScoringPolicy())
     registry = DependencyRegistry.model_validate(registry)
     dataset = TypeAdapter(Dataset).validate_python(dataset)
@@ -222,12 +252,17 @@ def score_observations(observations: list[Observation], *, dataset: str, cutoff:
         if row.dataset != dataset or row.timestamp > end or row.received_at > end:
             continue
         payload = row.model_dump(mode="json")
-        if row.observation_id in unique and unique[row.observation_id].model_dump(mode="json") != payload:
+        if (
+            row.observation_id in unique
+            and unique[row.observation_id].model_dump(mode="json") != payload
+        ):
             raise ValueError("conflicting scoring observation identity")
         unique[row.observation_id] = row
         if len(unique) > policy.max_observations:
             raise ValueError("scoring observation limit exceeded")
-    pending = sorted(unique.values(), key=lambda row: (max(row.timestamp, row.received_at), event_order(row)))
+    pending = sorted(
+        unique.values(), key=lambda row: (max(row.timestamp, row.received_at), event_order(row))
+    )
     latest = {}
     selected = {}
     cursor = 0
@@ -235,58 +270,92 @@ def score_observations(observations: list[Observation], *, dataset: str, cutoff:
     timings = {item.source: item for item in policy.source_timing}
     with localcontext() as context:
         context.prec = 60
+        context.rounding = ROUND_HALF_EVEN
         for step in range(1, policy.window_seconds // policy.step_seconds + 1):
             at = start + timedelta(seconds=step * policy.step_seconds)
-            while cursor < len(pending) and max(pending[cursor].timestamp, pending[cursor].received_at) <= at:
+            while (
+                cursor < len(pending)
+                and max(pending[cursor].timestamp, pending[cursor].received_at) <= at
+            ):
                 row = pending[cursor]
                 if row.source not in latest or event_order(row) > event_order(latest[row.source]):
                     latest[row.source] = row
                 cursor += 1
-            states = {source: availability(latest.get(source), at, timings[source]) for source in sorted(SOURCES)}
+            states = {
+                source: availability(latest.get(source), at, timings[source])
+                for source in sorted(SOURCES)
+            }
             samples = []
             for source, state in states.items():
-                peers = [item for name, item in states.items() if name != source and item["availability"] == "fresh"]
+                peers = [
+                    item
+                    for name, item in states.items()
+                    if name != source and item["availability"] == "fresh"
+                ]
                 comparison = {"comparison_reason": "source_unavailable"}
                 if state["availability"] == "fresh":
                     comparison = {"comparison_reason": "insufficient_peers"}
                     if len(peers) >= policy.minimum_peers:
                         reference = median([item["value"] for item in peers])
                         mad = median([abs(item["value"] - reference) for item in peers])
-                        threshold = max(mad * policy.mad_multiplier,
-                                        reference * policy.minimum_deviation_bps / 10000)
+                        threshold = max(
+                            mad * policy.mad_multiplier,
+                            reference * policy.minimum_deviation_bps / 10000,
+                        )
                         comparison = {
                             "comparison_reason": "peer_comparison",
-                            "comparison": "outlier" if abs(state["value"] - reference) > threshold else "inlier",
+                            "comparison": "outlier"
+                            if abs(state["value"] - reference) > threshold
+                            else "inlier",
                             "peer_observation_ids": tuple(item["observation_id"] for item in peers),
-                            "peer_median": reference, "deviation_threshold": threshold,
+                            "peer_median": reference,
+                            "deviation_threshold": threshold,
                         }
                 samples.append(ScoreSample(source=source, **state, **comparison))
                 if source in latest:
                     selected[latest[source].observation_id] = latest[source]
             ticks.append(ScoringTick(cutoff=at, sources=tuple(samples)))
     unknown_nodes = {node.id for node in registry.nodes if node.kind == "unknown"}
-    unknowns = {item.source: tuple(sorted(registry.upstreams(item.node_id) & unknown_nodes)) for item in registry.sources}
+    unknowns = {
+        item.source: tuple(sorted(registry.upstreams(item.node_id) & unknown_nodes))
+        for item in registry.sources
+    }
     data = ScoringData(
-        dataset=dataset, cutoff=end, window_start_exclusive=start, policy=policy,
-        policy_sha256=checksum(policy.model_dump(mode="json")), registry_id=registry.registry_id,
+        dataset=dataset,
+        cutoff=end,
+        window_start_exclusive=start,
+        policy=policy,
+        policy_sha256=checksum(policy.model_dump(mode="json")),
+        registry_id=registry.registry_id,
         registry_reviewed_at=registry.reviewed_at,
-        registry_known_at_cutoff=registry.reviewed_at <= end,
+        registry_review_after_cutoff=registry.reviewed_at > end,
         input_observation_ids=tuple(sorted(selected)),
-        input_sha256=checksum({identity: row.model_dump(mode="json") for identity, row in selected.items()}),
+        input_sha256=checksum(
+            {identity: row.model_dump(mode="json") for identity, row in selected.items()}
+        ),
         ticks=tuple(ticks),
-        sources=tuple(summarize(source, ticks, policy, unknowns[source]) for source in sorted(SOURCES)),
+        sources=tuple(
+            summarize(source, ticks, policy, unknowns[source]) for source in sorted(SOURCES)
+        ),
     )
     return ScoringReport(**data.model_dump(), report_id=checksum(data.model_dump(mode="json")))
 
 
-def build_scoring_report(store: "ObservationStore", *, dataset: str, cutoff: datetime,
-                         registry_id: str, policy: ScoringPolicy | None = None) -> ScoringReport:
+def build_scoring_report(
+    store: "ObservationStore",
+    *,
+    dataset: str,
+    cutoff: datetime,
+    registry_id: str,
+    policy: ScoringPolicy | None = None,
+) -> ScoringReport:
     policy = ScoringPolicy.model_validate(policy or ScoringPolicy())
     registry = store.get_dependency_registry(registry_id)
     if registry is None:
         raise ValueError("dependency registry not found; register the selected version first")
     end = aligned_cutoff(cutoff, policy.step_seconds)
     first = end - timedelta(seconds=policy.window_seconds - policy.step_seconds)
-    rows = store.scoring_observations(dataset=dataset, first=first, cutoff=end,
-                                      max_observations=policy.max_observations)
+    rows = store.scoring_observations(
+        dataset=dataset, first=first, cutoff=end, max_observations=policy.max_observations
+    )
     return score_observations(rows, dataset=dataset, cutoff=end, registry=registry, policy=policy)

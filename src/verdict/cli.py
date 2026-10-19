@@ -15,6 +15,7 @@ from verdict.dependencies import DependencyRegistry, bundled_registry, inspect_d
 from verdict.ingestion import ingest_all, ingest_source
 from verdict.models import SOURCES, Dataset
 from verdict.replay import replay
+from verdict.scoring import ScoringPolicy, build_scoring_report
 from verdict.statistics import AnalysisPolicy, build_report
 from verdict.storage import ObservationStore, build_engine
 
@@ -49,6 +50,11 @@ def main() -> None:
     analysis.add_argument("--dataset", default="live")
     analysis.add_argument("--at", help="Timezone-aware cutoff, e.g. 2026-10-16T00:00:10Z")
     analysis.add_argument("--window", type=int, default=300, help="History window in seconds")
+    scoring = commands.add_parser("score", help="Persist diagnostic source quality scores")
+    scoring.add_argument("--registry-id", required=True, help="Retained dependency registry hash")
+    scoring.add_argument("--dataset", default="live")
+    scoring.add_argument("--at", help="Timezone-aware cutoff, floored to the policy sampling grid")
+    scoring.add_argument("--policy", type=Path, help="Scoring policy JSON; defaults to scoring-v1")
     dependencies = commands.add_parser(
         "dependencies", help="Version and inspect dependency evidence"
     )
@@ -189,6 +195,28 @@ def main() -> None:
                 except ValueError as error:
                     parser.error(str(error))
                 print(json.dumps(report, indent=2))
+        elif args.command == "score":
+            try:
+                dataset = TypeAdapter(Dataset).validate_python(args.dataset)
+                if dataset.startswith("replay:") and args.at is None:
+                    parser.error("replay scoring requires --at for a reproducible cutoff")
+                policy = (
+                    ScoringPolicy.model_validate_json(args.policy.read_text(encoding="utf-8"))
+                    if args.policy
+                    else ScoringPolicy()
+                )
+                cutoff = datetime.fromisoformat(args.at) if args.at else datetime.now(UTC)
+                report = build_scoring_report(
+                    store,
+                    dataset=dataset,
+                    cutoff=cutoff,
+                    registry_id=args.registry_id,
+                    policy=policy,
+                )
+                store.save_scoring_round(report)
+                print(report.model_dump_json(indent=2))
+            except ValueError as error:
+                parser.error(str(error))
         elif args.command == "analyze":
             dataset = TypeAdapter(Dataset).validate_python(args.dataset)
             if dataset.startswith("replay:") and args.at is None:

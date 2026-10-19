@@ -27,6 +27,7 @@ from verdict.dependencies import DependencyRegistry, canonical_json
 from verdict.event_identity import same_event_content
 from verdict.models import Observation, Source
 from verdict.queue_models import QueuedAttempt
+from verdict.scoring import ScoringReport
 
 
 class Base(DeclarativeBase):
@@ -116,6 +117,17 @@ class DependencyRegistryRow(Base):
     payload: Mapped[str] = mapped_column(Text)
 
 
+class ScoringRoundRow(Base):
+    __tablename__ = "scoring_rounds"
+    __table_args__ = (Index("ix_scoring_lookup", "dataset", "cutoff", "id"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    dataset: Mapped[str] = mapped_column(String(80))
+    cutoff: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    registry_id: Mapped[str] = mapped_column(String(64))
+    payload: Mapped[str] = mapped_column(Text)
+
+
 class AttemptConflict(ValueError):
     """An ingestion attempt identity was reused with different content."""
 
@@ -159,6 +171,111 @@ class ObservationStore:
             session.execute(text("SELECT last_trade_id FROM stream_checkpoints LIMIT 1"))
             session.execute(text("SELECT id FROM ingestion_receipts LIMIT 1"))
             session.execute(text("SELECT id FROM dependency_registries LIMIT 1"))
+            session.execute(text("SELECT id FROM scoring_rounds LIMIT 1"))
+
+    def scoring_observations(
+        self, *, dataset: str, first: datetime, cutoff: datetime, max_observations: int
+    ) -> list[Observation]:
+        # One pre-window anchor per provider, then every newly visible event. A late
+        # receipt can matter even when its event time predates the first sample.
+        ranked = (
+            select(
+                ObservationRow.id,
+                func.row_number()
+                .over(
+                    partition_by=ObservationRow.source,
+                    order_by=(
+                        ObservationRow.timestamp.desc(),
+                        ObservationRow.event_sequence.desc(),
+                        ObservationRow.id.desc(),
+                    ),
+                )
+                .label("rank"),
+            )
+            .where(
+                ObservationRow.dataset == dataset,
+                ObservationRow.timestamp <= first,
+                ObservationRow.received_at <= first,
+            )
+            .subquery()
+        )
+        statement = (
+            select(ObservationRow.payload)
+            .where(
+                ObservationRow.dataset == dataset,
+                ObservationRow.timestamp <= cutoff,
+                ObservationRow.received_at <= cutoff,
+                or_(
+                    ObservationRow.id.in_(select(ranked.c.id).where(ranked.c.rank == 1)),
+                    ObservationRow.timestamp > first,
+                    ObservationRow.received_at > first,
+                ),
+            )
+            .limit(max_observations + 1)
+        )
+        with self.session() as session:
+            payloads = list(session.scalars(statement))
+        if len(payloads) > max_observations:
+            raise ValueError("scoring observation limit exceeded; narrow the window")
+        return [Observation.model_validate_json(payload) for payload in payloads]
+
+    def save_scoring_round(self, report: ScoringReport) -> bool:
+        report = ScoringReport.model_validate(report)
+        payload = canonical_json(report.model_dump(mode="json"))
+        with self.session() as session, session.begin():
+            if session.get(DependencyRegistryRow, report.registry_id) is None:
+                raise ValueError("dependency registry must be retained before scoring round")
+            try:
+                with session.begin_nested():
+                    session.add(
+                        ScoringRoundRow(
+                            id=report.report_id,
+                            dataset=report.dataset,
+                            cutoff=report.cutoff,
+                            registry_id=report.registry_id,
+                            payload=payload,
+                        )
+                    )
+                    session.flush()
+            except IntegrityError:
+                existing = session.scalar(
+                    select(ScoringRoundRow.payload).where(ScoringRoundRow.id == report.report_id)
+                )
+                if existing != payload:
+                    raise ValueError("immutable scoring round identity conflict") from None
+                return False
+        return True
+
+    @staticmethod
+    def _scoring_payload(row: ScoringRoundRow) -> dict:
+        report = ScoringReport.model_validate_json(row.payload)
+        if (report.report_id, report.dataset, report.cutoff, report.registry_id) != (
+            row.id,
+            row.dataset,
+            row.cutoff.replace(tzinfo=UTC) if row.cutoff.tzinfo is None else row.cutoff,
+            row.registry_id,
+        ):
+            raise ValueError("stored scoring round metadata mismatch")
+        return report.model_dump(mode="json")
+
+    def scoring_rounds(self, *, dataset: str = "live", limit: int = 100) -> list[dict]:
+        with self.session() as session:
+            rows = session.scalars(
+                select(ScoringRoundRow)
+                .where(ScoringRoundRow.dataset == dataset)
+                .order_by(ScoringRoundRow.cutoff.desc(), ScoringRoundRow.id.desc())
+                .limit(limit)
+            )
+            return [self._scoring_payload(row) for row in rows]
+
+    def get_scoring_round(self, report_id: str, *, dataset: str = "live") -> dict | None:
+        with self.session() as session:
+            row = session.scalar(
+                select(ScoringRoundRow).where(
+                    ScoringRoundRow.id == report_id, ScoringRoundRow.dataset == dataset
+                )
+            )
+            return self._scoring_payload(row) if row is not None else None
 
     def save_dependency_registry(self, registry: DependencyRegistry) -> bool:
         registry = DependencyRegistry.model_validate(registry)
