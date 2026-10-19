@@ -241,6 +241,11 @@ Validated with the project-local Python 3.12 runtime.
   includes scoring selection and persistence but has not been run locally.
 - The frozen historical report's existing source/capture checksums and reproduced
   rounds continue to pass. No statistical policy or historical result was retuned.
+- An actual CLI smoke run migrated an isolated SQLite database, registered the
+  dependency review, replayed the six-provider fixture, and saved/repeated scoring.
+  Both executions returned the same report ID, all six sources remained in cold
+  start, and publication stayed disabled. The built wheel loads its scoring module
+  and bundled registry independently of the source checkout.
 
 These are uncalibrated diagnostic quality scores. Real service integration,
 held-out six-provider calibration, independent upstream evidence, deployment
