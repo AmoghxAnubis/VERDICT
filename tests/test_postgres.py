@@ -8,6 +8,7 @@ from alembic.config import Config
 from verdict.config import get_settings
 from verdict.dependencies import bundled_registry
 from verdict.queue_models import QueuedAttempt
+from verdict.scoring import ScoringPolicy, build_scoring_report
 from verdict.statistics import analyze
 from verdict.storage import ObservationStore, build_engine
 
@@ -35,6 +36,18 @@ def test_postgres_migration_and_storage_contract(observation, monkeypatch):
         assert store.add(isolated)
         assert not store.add(isolated)
         assert store.list(dataset=isolated.dataset) == [isolated]
+        scored = build_scoring_report(
+            store,
+            dataset=isolated.dataset,
+            cutoff=isolated.received_at,
+            registry_id=registry.registry_id,
+            policy=ScoringPolicy(),
+        )
+        assert store.save_scoring_round(scored)
+        assert not store.save_scoring_round(scored)
+        assert store.get_scoring_round(scored.report_id, dataset=scored.dataset) == (
+            scored.model_dump(mode="json")
+        )
         report = analyze([isolated], dataset=isolated.dataset, cutoff=isolated.received_at)
         assert store.save_round(report)
         assert not store.save_round(report)

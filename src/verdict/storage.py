@@ -23,7 +23,7 @@ from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
-from verdict.dependencies import DependencyRegistry, canonical_json
+from verdict.dependencies import DependencyRegistry, canonical_json, checksum
 from verdict.event_identity import same_event_content
 from verdict.models import Observation, Source
 from verdict.queue_models import QueuedAttempt
@@ -223,8 +223,6 @@ class ObservationStore:
         report = ScoringReport.model_validate(report)
         payload = canonical_json(report.model_dump(mode="json"))
         with self.session() as session, session.begin():
-            if session.get(DependencyRegistryRow, report.registry_id) is None:
-                raise ValueError("dependency registry must be retained before scoring round")
             try:
                 with session.begin_nested():
                     session.add(
@@ -244,6 +242,30 @@ class ObservationStore:
                 if existing != payload:
                     raise ValueError("immutable scoring round identity conflict") from None
                 return False
+            # Write first to avoid upgrading competing SQLite read transactions.
+            # A missing registry rolls the entire insertion back before commit.
+            registry_row = session.get(DependencyRegistryRow, report.registry_id)
+            if registry_row is None:
+                raise ValueError("dependency registry must be retained before scoring round")
+            registry = DependencyRegistry.model_validate_json(registry_row.payload)
+            if (
+                registry.registry_id != report.registry_id
+                or registry.reviewed_at != report.registry_reviewed_at
+            ):
+                raise ValueError("scoring dependency evidence mismatch")
+            payloads = session.scalars(
+                select(ObservationRow.payload).where(
+                    ObservationRow.id.in_(report.input_observation_ids),
+                    ObservationRow.dataset == report.dataset,
+                )
+            )
+            inputs = [Observation.model_validate_json(value) for value in payloads]
+            if (
+                len(inputs) != len(report.input_observation_ids)
+                or checksum({row.observation_id: row.model_dump(mode="json") for row in inputs})
+                != report.input_sha256
+            ):
+                raise ValueError("scoring input evidence is missing or changed")
         return True
 
     @staticmethod

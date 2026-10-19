@@ -96,6 +96,7 @@ class SourceScore(FrozenModel):
     mean_freshness_bps: Bps
     current_freshness_bps: Bps
     consistency_bps: Bps | None
+    comparison_coverage_bps: Bps
     uncapped_score_bps: Bps | None
     score_bps: Bps | None
     status: Literal["unavailable", "unscored", "cold_start", "established"]
@@ -115,7 +116,7 @@ class ScoringData(FrozenModel):
     registry_id: Sha256
     registry_reviewed_at: AwareDatetime
     registry_review_after_cutoff: bool
-    input_observation_ids: tuple[Sha256, ...]
+    input_observation_ids: tuple[Sha256, ...] = Field(max_length=2160)
     input_sha256: Sha256
     ticks: tuple[ScoringTick, ...]
     sources: tuple[SourceScore, ...]
@@ -183,6 +184,7 @@ def summarize(
     uptime = len(fresh) * 10000 // len(samples)
     mean_freshness = sum(item.freshness_bps for item in samples) // len(samples)
     consistency = inliers * 10000 // len(compared) if compared else None
+    comparison_coverage = len(compared) * 10000 // len(samples)
     reasons = []
     if len(fresh) < policy.minimum_fresh_samples:
         reasons.append("insufficient_fresh_history")
@@ -202,7 +204,9 @@ def summarize(
         reasons.append("current_insufficient_peers")
     else:
         # Current outliers cannot borrow a healthy score from preceding agreement.
-        raw_score = min(uptime, mean_freshness, consistency, current.freshness_bps)
+        raw_score = min(
+            uptime, mean_freshness, consistency, comparison_coverage, current.freshness_bps
+        )
         if current.comparison == "outlier":
             raw_score = 0
             reasons.append("current_outlier")
@@ -225,6 +229,7 @@ def summarize(
         mean_freshness_bps=mean_freshness,
         current_freshness_bps=current.freshness_bps,
         consistency_bps=consistency,
+        comparison_coverage_bps=comparison_coverage,
         uncapped_score_bps=raw_score,
         score_bps=score,
         status=status,
@@ -251,6 +256,7 @@ def score_observations(
     for row in observations:
         if row.dataset != dataset or row.timestamp > end or row.received_at > end:
             continue
+        row = Observation.model_validate(row.model_dump())
         payload = row.model_dump(mode="json")
         if (
             row.observation_id in unique
@@ -294,7 +300,10 @@ def score_observations(
                 ]
                 comparison = {"comparison_reason": "source_unavailable"}
                 if state["availability"] == "fresh":
-                    comparison = {"comparison_reason": "insufficient_peers"}
+                    comparison = {
+                        "comparison_reason": "insufficient_peers",
+                        "peer_observation_ids": tuple(item["observation_id"] for item in peers),
+                    }
                     if len(peers) >= policy.minimum_peers:
                         reference = median([item["value"] for item in peers])
                         mad = median([abs(item["value"] - reference) for item in peers])
