@@ -15,6 +15,7 @@ from verdict.models import SOURCES, Asset, Dataset, ObservationData, Source
 from verdict.scoring import ScoringReport
 from verdict.statistics import AnalysisPolicy, AnalysisReport, build_report
 from verdict.storage import ObservationStore, build_engine
+from verdict.weighting import WeightingReport
 
 logger = logging.getLogger(__name__)
 
@@ -142,6 +143,19 @@ def create_app(settings: Settings | None = None, store: ObservationStore | None 
         report = store.get_scoring_round(report_id, dataset=dataset)
         if report is None:
             raise HTTPException(404, detail="scoring round not found in selected dataset")
+        return report
+
+    @app.get("/v1/weights", response_model=list[WeightingReport])
+    def weighting_rounds(
+        dataset: Dataset = "live", limit: Annotated[int, Query(ge=1, le=100)] = 10
+    ):
+        return store.weighting_rounds(dataset=dataset, limit=limit)
+
+    @app.get("/v1/weights/{report_id}", response_model=WeightingReport)
+    def weighting_detail(report_id: Sha256, dataset: Dataset = "live"):
+        report = store.get_weighting_round(report_id, dataset=dataset)
+        if report is None:
+            raise HTTPException(404, detail="weighting round not found in selected dataset")
         return report
 
     @app.get("/v1/dependencies")

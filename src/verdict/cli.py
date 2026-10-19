@@ -18,6 +18,7 @@ from verdict.replay import replay
 from verdict.scoring import ScoringPolicy, build_scoring_report
 from verdict.statistics import AnalysisPolicy, build_report
 from verdict.storage import ObservationStore, build_engine
+from verdict.weighting import WeightingPolicy
 
 
 def main() -> None:
@@ -55,6 +56,12 @@ def main() -> None:
     scoring.add_argument("--dataset", default="live")
     scoring.add_argument("--at", help="Timezone-aware cutoff, floored to the policy sampling grid")
     scoring.add_argument("--policy", type=Path, help="Scoring policy JSON; defaults to scoring-v1")
+    weighting = commands.add_parser("weight", help="Apply quarantine/recovery and dependency caps")
+    weighting.add_argument("scoring_report_id", help="Retained scoring report to apply once")
+    weighting.add_argument("--dataset", default="live")
+    weighting.add_argument(
+        "--policy", type=Path, help="Weighting policy JSON; fixed for this dataset"
+    )
     dependencies = commands.add_parser(
         "dependencies", help="Version and inspect dependency evidence"
     )
@@ -195,6 +202,20 @@ def main() -> None:
                 except ValueError as error:
                     parser.error(str(error))
                 print(json.dumps(report, indent=2))
+        elif args.command == "weight":
+            try:
+                dataset = TypeAdapter(Dataset).validate_python(args.dataset)
+                policy = (
+                    WeightingPolicy.model_validate_json(args.policy.read_text(encoding="utf-8"))
+                    if args.policy
+                    else WeightingPolicy()
+                )
+                report = store.apply_weighting(
+                    args.scoring_report_id, dataset=dataset, policy=policy
+                )
+                print(report.model_dump_json(indent=2))
+            except ValueError as error:
+                parser.error(str(error))
         elif args.command == "score":
             try:
                 dataset = TypeAdapter(Dataset).validate_python(args.dataset)

@@ -46,6 +46,12 @@ class DependencyCap(FrozenModel):
     sources: tuple[Source, ...]
     max_share_bps: Bps
 
+    @model_validator(mode="after")
+    def unique_members(self):
+        if not self.sources or len(set(self.sources)) != len(self.sources):
+            raise ValueError("dependency cap requires unique source members")
+        return self
+
 
 class CapResult(DependencyCap):
     weight_bps: Bps
@@ -96,6 +102,8 @@ class WeightingReport(WeightingData):
             amount = sum(weights[source] for source in cap.sources)
             if amount != cap.weight_bps or amount * 10000 > total * cap.max_share_bps:
                 raise ValueError("dependency share cap exceeded")
+            if cap.actual_share_bps != (amount * 10000 // total if total else None):
+                raise ValueError("dependency share breakdown mismatch")
         return self
 
 

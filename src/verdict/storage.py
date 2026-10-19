@@ -12,6 +12,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     create_engine,
     func,
     or_,
@@ -28,6 +29,7 @@ from verdict.event_identity import same_event_content
 from verdict.models import Observation, Source
 from verdict.queue_models import QueuedAttempt
 from verdict.scoring import ScoringReport
+from verdict.weighting import WeightingPolicy, WeightingReport, advance_weights
 
 
 class Base(DeclarativeBase):
@@ -128,6 +130,27 @@ class ScoringRoundRow(Base):
     payload: Mapped[str] = mapped_column(Text)
 
 
+class WeightingRoundRow(Base):
+    __tablename__ = "weighting_rounds"
+    __table_args__ = (
+        Index("ix_weighting_lookup", "dataset", "cutoff", "id"),
+        UniqueConstraint("dataset", "cutoff", name="uq_weighting_cutoff"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    dataset: Mapped[str] = mapped_column(String(80))
+    cutoff: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    scoring_report_id: Mapped[str] = mapped_column(String(64), unique=True)
+    payload: Mapped[str] = mapped_column(Text)
+
+
+class WeightingHeadRow(Base):
+    __tablename__ = "weighting_heads"
+
+    dataset: Mapped[str] = mapped_column(String(80), primary_key=True)
+    report_id: Mapped[str | None] = mapped_column(String(64))
+
+
 class AttemptConflict(ValueError):
     """An ingestion attempt identity was reused with different content."""
 
@@ -172,6 +195,106 @@ class ObservationStore:
             session.execute(text("SELECT id FROM ingestion_receipts LIMIT 1"))
             session.execute(text("SELECT id FROM dependency_registries LIMIT 1"))
             session.execute(text("SELECT id FROM scoring_rounds LIMIT 1"))
+            session.execute(text("SELECT id FROM weighting_rounds LIMIT 1"))
+            session.execute(text("SELECT report_id FROM weighting_heads LIMIT 1"))
+
+    @staticmethod
+    def _weighting_payload(row: WeightingRoundRow) -> WeightingReport:
+        report = WeightingReport.model_validate_json(row.payload)
+        if (report.report_id, report.dataset, report.cutoff, report.scoring_report_id) != (
+            row.id,
+            row.dataset,
+            row.cutoff.replace(tzinfo=UTC) if row.cutoff.tzinfo is None else row.cutoff,
+            row.scoring_report_id,
+        ):
+            raise ValueError("stored weighting round metadata mismatch")
+        return report
+
+    def apply_weighting(
+        self,
+        scoring_report_id: str,
+        *,
+        dataset: str = "live",
+        policy: WeightingPolicy | None = None,
+    ) -> WeightingReport:
+        from sqlalchemy.dialects.postgresql import insert as postgres_insert
+        from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+        policy = WeightingPolicy.model_validate(policy or WeightingPolicy())
+        insert = sqlite_insert if self.engine.dialect.name == "sqlite" else postgres_insert
+        with self.session() as session, session.begin():
+            # First operation is a write: SQLite avoids read-lock upgrades and
+            # PostgreSQL locks this dataset's head until the whole transition commits.
+            session.execute(
+                insert(WeightingHeadRow)
+                .values(dataset=dataset, report_id=None)
+                .on_conflict_do_update(index_elements=["dataset"], set_={"dataset": dataset})
+            )
+            existing = session.scalar(
+                select(WeightingRoundRow).where(
+                    WeightingRoundRow.scoring_report_id == scoring_report_id,
+                    WeightingRoundRow.dataset == dataset,
+                )
+            )
+            if existing is not None:
+                report = self._weighting_payload(existing)
+                if report.policy != policy:
+                    raise ValueError(
+                        "already applied scoring report with a different weighting policy"
+                    )
+                return report
+            score_row = session.scalar(
+                select(ScoringRoundRow).where(
+                    ScoringRoundRow.id == scoring_report_id,
+                    ScoringRoundRow.dataset == dataset,
+                )
+            )
+            if score_row is None:
+                raise ValueError("scoring report not found in selected dataset")
+            score = ScoringReport.model_validate(self._scoring_payload(score_row))
+            registry_row = session.get(DependencyRegistryRow, score.registry_id)
+            if registry_row is None:
+                raise ValueError("scoring dependency registry is missing")
+            registry = DependencyRegistry.model_validate_json(registry_row.payload)
+            head = session.get(WeightingHeadRow, dataset)
+            previous = None
+            if head.report_id is not None:
+                previous_row = session.get(WeightingRoundRow, head.report_id)
+                if previous_row is None:
+                    raise ValueError("weighting head points to missing evidence")
+                previous = self._weighting_payload(previous_row)
+            report = advance_weights(score, registry, policy=policy, previous=previous)
+            session.add(
+                WeightingRoundRow(
+                    id=report.report_id,
+                    dataset=report.dataset,
+                    cutoff=report.cutoff,
+                    scoring_report_id=score.report_id,
+                    payload=canonical_json(report.model_dump(mode="json")),
+                )
+            )
+            head.report_id = report.report_id
+        return report
+
+    def weighting_rounds(self, *, dataset: str = "live", limit: int = 10) -> list[dict]:
+        with self.session() as session:
+            rows = session.scalars(
+                select(WeightingRoundRow)
+                .where(WeightingRoundRow.dataset == dataset)
+                .order_by(WeightingRoundRow.cutoff.desc(), WeightingRoundRow.id.desc())
+                .limit(limit)
+            )
+            return [self._weighting_payload(row).model_dump(mode="json") for row in rows]
+
+    def get_weighting_round(self, report_id: str, *, dataset: str = "live") -> dict | None:
+        with self.session() as session:
+            row = session.scalar(
+                select(WeightingRoundRow).where(
+                    WeightingRoundRow.id == report_id,
+                    WeightingRoundRow.dataset == dataset,
+                )
+            )
+            return self._weighting_payload(row).model_dump(mode="json") if row else None
 
     def scoring_observations(
         self, *, dataset: str, first: datetime, cutoff: datetime, max_observations: int
