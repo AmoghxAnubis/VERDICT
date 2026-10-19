@@ -35,7 +35,7 @@ uv run --no-sync verdict dependencies inspect e6c74460fbff40dd4517bba9b715e47094
 
 A separately reviewed JSON registry can be imported with
 `verdict dependencies register --file path/to/registry.json`. The input shape is
-the bundled [registry file](../src/verdict/data/dependencies-v1.json), without the
+the bundled [registry file](../src/verdict/registries/dependencies-v1.json), without the
 API envelope's `registry_id`. Registration validates structural consistency and
 evidence hashes; it cannot establish that the author's statements are true.
 Only import reviewed, credential-free evidence. Retained evidence is exposed by

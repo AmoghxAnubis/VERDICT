@@ -185,7 +185,7 @@ class DependencyRegistry(FrozenModel):
 
 def bundled_registry() -> DependencyRegistry:
     return DependencyRegistry.model_validate_json(
-        files("verdict").joinpath("data/dependencies-v1.json").read_text(encoding="utf-8")
+        files("verdict").joinpath("registries/dependencies-v1.json").read_text(encoding="utf-8")
     )
 
 

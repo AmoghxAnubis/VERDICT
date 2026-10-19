@@ -1,0 +1,674 @@
+{
+  "schema_version": 1,
+  "version": "dependencies-v1",
+  "asset": "ETH-USD",
+  "reviewed_at": "2026-10-19T18:00:00Z",
+  "scope": "Implementation-scoped dependency review for ETH/USD adapters. No deployment attestation, verified upstream independence, temporal validity claim, or authorization to publish. Select this version explicitly; do not infer historical validity from reviewed_at.",
+  "sources": [
+    {
+      "source": "binance_us",
+      "node_id": "source:binance_us"
+    },
+    {
+      "source": "chainlink",
+      "node_id": "source:chainlink"
+    },
+    {
+      "source": "coinbase",
+      "node_id": "source:coinbase"
+    },
+    {
+      "source": "kraken",
+      "node_id": "source:kraken"
+    },
+    {
+      "source": "pyth",
+      "node_id": "source:pyth"
+    },
+    {
+      "source": "uniswap_v3",
+      "node_id": "source:uniswap_v3"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "api:binance_us",
+      "kind": "transport",
+      "description": "binance_us public exchange API; common-provider upstream infrastructure is unverified.",
+      "evidence_ids": [
+        "code:binance_us"
+      ]
+    },
+    {
+      "id": "api:coinbase",
+      "kind": "transport",
+      "description": "coinbase public exchange API; common-provider upstream infrastructure is unverified.",
+      "evidence_ids": [
+        "code:coinbase"
+      ]
+    },
+    {
+      "id": "api:kraken",
+      "kind": "transport",
+      "description": "kraken public exchange API; common-provider upstream infrastructure is unverified.",
+      "evidence_ids": [
+        "code:kraken"
+      ]
+    },
+    {
+      "id": "chainlink_eth_usd",
+      "kind": "feed",
+      "description": "Chainlink ETH/USD feed selected by the connector.",
+      "evidence_ids": [
+        "code:chainlink",
+        "code:ethereum"
+      ]
+    },
+    {
+      "id": "chainlink_protocol",
+      "kind": "protocol",
+      "description": "Chainlink feed protocol family, without an assertion of identical operators or publishers.",
+      "evidence_ids": [
+        "code:chainlink",
+        "code:uniswap",
+        "review:scope"
+      ]
+    },
+    {
+      "id": "chainlink_usdc_usd",
+      "kind": "feed",
+      "description": "Chainlink USDC/USD feed used for the pool quote conversion.",
+      "evidence_ids": [
+        "code:ethereum",
+        "code:uniswap"
+      ]
+    },
+    {
+      "id": "configured_ethereum_rpc",
+      "kind": "transport",
+      "description": "Shared Ethereum RPC configuration slot; this is not a verified operator identity.",
+      "evidence_ids": [
+        "code:registry"
+      ]
+    },
+    {
+      "id": "ethereum_mainnet",
+      "kind": "chain",
+      "description": "Ethereum chain ID 1 checked by the on-chain adapters.",
+      "evidence_ids": [
+        "code:ethereum"
+      ]
+    },
+    {
+      "id": "hermes_service",
+      "kind": "transport",
+      "description": "Configured Hermes service; update bytes are unverified by this adapter.",
+      "evidence_ids": [
+        "code:pyth",
+        "code:registry"
+      ]
+    },
+    {
+      "id": "market:binance_us",
+      "kind": "market",
+      "description": "binance_us direct USD trade market consumed by this adapter.",
+      "evidence_ids": [
+        "code:binance_us"
+      ]
+    },
+    {
+      "id": "market:coinbase",
+      "kind": "market",
+      "description": "coinbase direct USD trade market consumed by this adapter.",
+      "evidence_ids": [
+        "code:coinbase"
+      ]
+    },
+    {
+      "id": "market:kraken",
+      "kind": "market",
+      "description": "kraken direct USD trade market consumed by this adapter.",
+      "evidence_ids": [
+        "code:kraken"
+      ]
+    },
+    {
+      "id": "pyth_network",
+      "kind": "protocol",
+      "description": "Pyth ETH/USD feed identified in the Hermes response.",
+      "evidence_ids": [
+        "code:pyth"
+      ]
+    },
+    {
+      "id": "source:binance_us",
+      "kind": "source",
+      "description": "VERDICT ETH/USD adapter: binance_us.",
+      "evidence_ids": [
+        "code:binance_us"
+      ]
+    },
+    {
+      "id": "source:chainlink",
+      "kind": "source",
+      "description": "VERDICT ETH/USD adapter: chainlink.",
+      "evidence_ids": [
+        "code:chainlink"
+      ]
+    },
+    {
+      "id": "source:coinbase",
+      "kind": "source",
+      "description": "VERDICT ETH/USD adapter: coinbase.",
+      "evidence_ids": [
+        "code:coinbase"
+      ]
+    },
+    {
+      "id": "source:kraken",
+      "kind": "source",
+      "description": "VERDICT ETH/USD adapter: kraken.",
+      "evidence_ids": [
+        "code:kraken"
+      ]
+    },
+    {
+      "id": "source:pyth",
+      "kind": "source",
+      "description": "VERDICT ETH/USD adapter: pyth.",
+      "evidence_ids": [
+        "code:pyth"
+      ]
+    },
+    {
+      "id": "source:uniswap_v3",
+      "kind": "source",
+      "description": "VERDICT ETH/USD adapter: uniswap_v3.",
+      "evidence_ids": [
+        "code:uniswap"
+      ]
+    },
+    {
+      "id": "uniswap_v3_pool",
+      "kind": "market",
+      "description": "Factory-validated Uniswap v3 USDC/WETH pool, fee 500.",
+      "evidence_ids": [
+        "code:uniswap"
+      ]
+    },
+    {
+      "id": "unknown:binance_us",
+      "kind": "unknown",
+      "description": "binance_us economic participants, reference markets, and cross-provider overlap are unverified.",
+      "evidence_ids": [
+        "review:scope"
+      ]
+    },
+    {
+      "id": "unknown:coinbase",
+      "kind": "unknown",
+      "description": "coinbase economic participants, reference markets, and cross-provider overlap are unverified.",
+      "evidence_ids": [
+        "review:scope"
+      ]
+    },
+    {
+      "id": "unknown:kraken",
+      "kind": "unknown",
+      "description": "kraken economic participants, reference markets, and cross-provider overlap are unverified.",
+      "evidence_ids": [
+        "review:scope"
+      ]
+    },
+    {
+      "id": "unknown_chainlink_eth",
+      "kind": "unknown",
+      "description": "ETH/USD feed publishers, data vendors and operator overlaps unverified.",
+      "evidence_ids": [
+        "review:scope"
+      ]
+    },
+    {
+      "id": "unknown_chainlink_usdc",
+      "kind": "unknown",
+      "description": "USDC/USD feed publishers, data vendors and operator overlaps unverified.",
+      "evidence_ids": [
+        "review:scope"
+      ]
+    },
+    {
+      "id": "unknown_deployment",
+      "kind": "unknown",
+      "description": "Host, network, RPC/Hermes operator and backend overlap are not established by this code review.",
+      "evidence_ids": [
+        "review:scope"
+      ]
+    },
+    {
+      "id": "unknown_pool_participants",
+      "kind": "unknown",
+      "description": "Pool liquidity-provider and arbitrage relationships to other sources are unverified.",
+      "evidence_ids": [
+        "review:scope"
+      ]
+    },
+    {
+      "id": "unknown_pyth_publishers",
+      "kind": "unknown",
+      "description": "Pyth feed publisher set and overlap with other sources are unverified.",
+      "evidence_ids": [
+        "review:scope"
+      ]
+    },
+    {
+      "id": "usdc",
+      "kind": "asset",
+      "description": "Pool quote token; adapter uses an explicit USDC/USD conversion.",
+      "evidence_ids": [
+        "code:uniswap"
+      ]
+    },
+    {
+      "id": "verdict_collector",
+      "kind": "transport",
+      "description": "Common centrally operated VERDICT ingestion deployment.",
+      "evidence_ids": [
+        "code:registry",
+        "review:scope"
+      ]
+    },
+    {
+      "id": "weth_redemption",
+      "kind": "asset",
+      "description": "Adapter's explicit 1:1 WETH redemption assumption.",
+      "evidence_ids": [
+        "code:uniswap"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "downstream": "chainlink_eth_usd",
+      "upstream": "chainlink_protocol",
+      "relationship": "protocol",
+      "explanation": "Both feeds use the Chainlink feed interface; publisher independence is unverified.",
+      "evidence_ids": [
+        "code:chainlink",
+        "code:uniswap",
+        "review:scope"
+      ]
+    },
+    {
+      "downstream": "chainlink_eth_usd",
+      "upstream": "unknown_chainlink_eth",
+      "relationship": "unknown",
+      "explanation": "No upstream membership evidence retained for this feed.",
+      "evidence_ids": [
+        "review:scope"
+      ]
+    },
+    {
+      "downstream": "chainlink_usdc_usd",
+      "upstream": "chainlink_protocol",
+      "relationship": "protocol",
+      "explanation": "Both feeds use the Chainlink feed interface; publisher independence is unverified.",
+      "evidence_ids": [
+        "code:chainlink",
+        "code:uniswap",
+        "review:scope"
+      ]
+    },
+    {
+      "downstream": "chainlink_usdc_usd",
+      "upstream": "unknown_chainlink_usdc",
+      "relationship": "unknown",
+      "explanation": "No upstream membership evidence retained for this feed.",
+      "evidence_ids": [
+        "review:scope"
+      ]
+    },
+    {
+      "downstream": "market:binance_us",
+      "upstream": "unknown:binance_us",
+      "relationship": "unknown",
+      "explanation": "Trade data does not establish participant independence.",
+      "evidence_ids": [
+        "review:scope"
+      ]
+    },
+    {
+      "downstream": "market:coinbase",
+      "upstream": "unknown:coinbase",
+      "relationship": "unknown",
+      "explanation": "Trade data does not establish participant independence.",
+      "evidence_ids": [
+        "review:scope"
+      ]
+    },
+    {
+      "downstream": "market:kraken",
+      "upstream": "unknown:kraken",
+      "relationship": "unknown",
+      "explanation": "Trade data does not establish participant independence.",
+      "evidence_ids": [
+        "review:scope"
+      ]
+    },
+    {
+      "downstream": "pyth_network",
+      "upstream": "unknown_pyth_publishers",
+      "relationship": "unknown",
+      "explanation": "No feed-specific publisher membership evidence retained.",
+      "evidence_ids": [
+        "review:scope"
+      ]
+    },
+    {
+      "downstream": "source:binance_us",
+      "upstream": "api:binance_us",
+      "relationship": "delivery",
+      "explanation": "The exchange API supplies this adapter's observations.",
+      "evidence_ids": [
+        "code:binance_us"
+      ]
+    },
+    {
+      "downstream": "source:binance_us",
+      "upstream": "market:binance_us",
+      "relationship": "price",
+      "explanation": "Adapter normalizes a direct USD trade.",
+      "evidence_ids": [
+        "code:binance_us"
+      ]
+    },
+    {
+      "downstream": "source:binance_us",
+      "upstream": "verdict_collector",
+      "relationship": "delivery",
+      "explanation": "All adapters are run by this VERDICT deployment.",
+      "evidence_ids": [
+        "code:registry",
+        "review:scope"
+      ]
+    },
+    {
+      "downstream": "source:chainlink",
+      "upstream": "chainlink_eth_usd",
+      "relationship": "price",
+      "explanation": "The ETH/USD feed supplies the observed price.",
+      "evidence_ids": [
+        "code:chainlink"
+      ]
+    },
+    {
+      "downstream": "source:chainlink",
+      "upstream": "configured_ethereum_rpc",
+      "relationship": "delivery",
+      "explanation": "build_connector passes the same RPC setting to both adapters.",
+      "evidence_ids": [
+        "code:registry"
+      ]
+    },
+    {
+      "downstream": "source:chainlink",
+      "upstream": "ethereum_mainnet",
+      "relationship": "settlement",
+      "explanation": "Hash-pinned on-chain reads use Ethereum mainnet.",
+      "evidence_ids": [
+        "code:chainlink",
+        "code:ethereum"
+      ]
+    },
+    {
+      "downstream": "source:chainlink",
+      "upstream": "verdict_collector",
+      "relationship": "delivery",
+      "explanation": "All adapters are run by this VERDICT deployment.",
+      "evidence_ids": [
+        "code:registry",
+        "review:scope"
+      ]
+    },
+    {
+      "downstream": "source:coinbase",
+      "upstream": "api:coinbase",
+      "relationship": "delivery",
+      "explanation": "The exchange API supplies this adapter's observations.",
+      "evidence_ids": [
+        "code:coinbase"
+      ]
+    },
+    {
+      "downstream": "source:coinbase",
+      "upstream": "market:coinbase",
+      "relationship": "price",
+      "explanation": "Adapter normalizes a direct USD trade.",
+      "evidence_ids": [
+        "code:coinbase"
+      ]
+    },
+    {
+      "downstream": "source:coinbase",
+      "upstream": "verdict_collector",
+      "relationship": "delivery",
+      "explanation": "All adapters are run by this VERDICT deployment.",
+      "evidence_ids": [
+        "code:registry",
+        "review:scope"
+      ]
+    },
+    {
+      "downstream": "source:kraken",
+      "upstream": "api:kraken",
+      "relationship": "delivery",
+      "explanation": "The exchange API supplies this adapter's observations.",
+      "evidence_ids": [
+        "code:kraken"
+      ]
+    },
+    {
+      "downstream": "source:kraken",
+      "upstream": "market:kraken",
+      "relationship": "price",
+      "explanation": "Adapter normalizes a direct USD trade.",
+      "evidence_ids": [
+        "code:kraken"
+      ]
+    },
+    {
+      "downstream": "source:kraken",
+      "upstream": "verdict_collector",
+      "relationship": "delivery",
+      "explanation": "All adapters are run by this VERDICT deployment.",
+      "evidence_ids": [
+        "code:registry",
+        "review:scope"
+      ]
+    },
+    {
+      "downstream": "source:pyth",
+      "upstream": "hermes_service",
+      "relationship": "delivery",
+      "explanation": "Hermes supplies the parsed price and retained binary update.",
+      "evidence_ids": [
+        "code:pyth"
+      ]
+    },
+    {
+      "downstream": "source:pyth",
+      "upstream": "pyth_network",
+      "relationship": "price",
+      "explanation": "Adapter consumes the parsed ETH/USD feed price.",
+      "evidence_ids": [
+        "code:pyth"
+      ]
+    },
+    {
+      "downstream": "source:pyth",
+      "upstream": "verdict_collector",
+      "relationship": "delivery",
+      "explanation": "All adapters are run by this VERDICT deployment.",
+      "evidence_ids": [
+        "code:registry",
+        "review:scope"
+      ]
+    },
+    {
+      "downstream": "source:uniswap_v3",
+      "upstream": "chainlink_usdc_usd",
+      "relationship": "conversion",
+      "explanation": "The pool's USDC quote is multiplied by the same-block USDC/USD feed value.",
+      "evidence_ids": [
+        "code:uniswap"
+      ]
+    },
+    {
+      "downstream": "source:uniswap_v3",
+      "upstream": "configured_ethereum_rpc",
+      "relationship": "delivery",
+      "explanation": "build_connector passes the same RPC setting to both adapters.",
+      "evidence_ids": [
+        "code:registry"
+      ]
+    },
+    {
+      "downstream": "source:uniswap_v3",
+      "upstream": "ethereum_mainnet",
+      "relationship": "settlement",
+      "explanation": "Hash-pinned on-chain reads use Ethereum mainnet.",
+      "evidence_ids": [
+        "code:ethereum",
+        "code:uniswap"
+      ]
+    },
+    {
+      "downstream": "source:uniswap_v3",
+      "upstream": "uniswap_v3_pool",
+      "relationship": "price",
+      "explanation": "Pool slot0 supplies the spot exchange rate.",
+      "evidence_ids": [
+        "code:uniswap"
+      ]
+    },
+    {
+      "downstream": "source:uniswap_v3",
+      "upstream": "verdict_collector",
+      "relationship": "delivery",
+      "explanation": "All adapters are run by this VERDICT deployment.",
+      "evidence_ids": [
+        "code:registry",
+        "review:scope"
+      ]
+    },
+    {
+      "downstream": "uniswap_v3_pool",
+      "upstream": "unknown_pool_participants",
+      "relationship": "unknown",
+      "explanation": "Pool state does not identify independent economic domains.",
+      "evidence_ids": [
+        "review:scope"
+      ]
+    },
+    {
+      "downstream": "uniswap_v3_pool",
+      "upstream": "usdc",
+      "relationship": "conversion",
+      "explanation": "Pool token0 is USDC.",
+      "evidence_ids": [
+        "code:uniswap"
+      ]
+    },
+    {
+      "downstream": "uniswap_v3_pool",
+      "upstream": "weth_redemption",
+      "relationship": "conversion",
+      "explanation": "Pool token1 is WETH, interpreted as ETH under the adapter's stated redemption assumption.",
+      "evidence_ids": [
+        "code:uniswap"
+      ]
+    },
+    {
+      "downstream": "verdict_collector",
+      "upstream": "unknown_deployment",
+      "relationship": "unknown",
+      "explanation": "Deployment topology is outside this implementation snapshot.",
+      "evidence_ids": [
+        "review:scope"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "code:binance_us",
+      "kind": "implementation",
+      "reference": "src/verdict/connectors/binance_us.py",
+      "captured_at": "2026-10-19T18:00:00Z",
+      "content": "import time\nfrom datetime import UTC, datetime\nfrom decimal import Decimal\n\nimport httpx\nfrom pydantic import BaseModel, Field\n\nfrom verdict.connectors.common import check_clock, epoch_seconds\nfrom verdict.models import Dataset, Observation\n\nBASE_URL = \"https://api.binance.us\"\n\n\nclass TradeIdentity(BaseModel):\n    id: int = Field(ge=0, strict=True)\n    time: int = Field(ge=0, strict=True)\n\n\ndef normalize_trades(\n    payload: dict, *, received_at: datetime, latency_ms: float, dataset: Dataset = \"live\"\n) -> Observation:\n    # The adapter, not provider-supplied data, pins the requested instrument.\n    if not isinstance(payload, dict) or payload.get(\"symbol\") != \"ETHUSD\":\n        raise ValueError(\"expected Binance.US ETHUSD; stablecoin pairs are not USD\")\n    trades = payload.get(\"trades\")\n    if not isinstance(trades, list) or not trades or any(not isinstance(t, dict) for t in trades):\n        raise ValueError(\"Binance.US returned no valid trades\")\n    parsed = [(TradeIdentity.model_validate(trade), trade) for trade in trades]\n    identity, trade = max(parsed, key=lambda item: (item[0].time, item[0].id))\n    return Observation(\n        dataset=dataset,\n        source=\"binance_us\",\n        provider_event_id=str(identity.id),\n        value=trade.get(\"price\"),\n        timestamp=epoch_seconds(Decimal(identity.time) / 1000),\n        received_at=received_at,\n        latency_ms=latency_ms,\n        raw_payload=payload,\n    )\n\n\nclass BinanceUSConnector:\n    def __init__(self, client: httpx.AsyncClient, max_future_skew_seconds: float = 5):\n        self.client = client\n        self.max_future_skew_seconds = max_future_skew_seconds\n\n    async def fetch(self) -> Observation:\n        started = time.perf_counter()\n        response = await self.client.get(\n            f\"{BASE_URL}/api/v3/trades\", params={\"symbol\": \"ETHUSD\", \"limit\": 1}\n        )\n        received_at = datetime.now(UTC)\n        elapsed_ms = (time.perf_counter() - started) * 1000\n        response.raise_for_status()\n        observation = normalize_trades(\n            {\"symbol\": \"ETHUSD\", \"trades\": response.json()},\n            received_at=received_at,\n            latency_ms=elapsed_ms,\n        )\n        return check_clock(observation, self.max_future_skew_seconds)\n",
+      "content_sha256": "738a05a9d288bd6ea93b6608abfec628a585ceebbed6393a5ef834ed7931654c"
+    },
+    {
+      "id": "code:chainlink",
+      "kind": "implementation",
+      "reference": "src/verdict/connectors/chainlink.py",
+      "captured_at": "2026-10-19T18:00:00Z",
+      "content": "import time\nfrom datetime import UTC, datetime\nfrom decimal import Decimal, localcontext\n\nimport httpx\nfrom pydantic import BaseModel, ConfigDict\n\nfrom verdict.connectors.common import check_clock, epoch_seconds\nfrom verdict.connectors.ethereum import ETH_USD_FEED, ROUND_TYPES, EthereumRPC, decode_return\nfrom verdict.models import Address, ChainBlock, Dataset, Observation, SourceProvenance\n\nFEED_CALLS = {\n    \"decimals\": \"decimals()\",\n    \"description\": \"description()\",\n    \"round\": \"latestRoundData()\",\n}\n\n\nclass FeedBundle(BaseModel):\n    model_config = ConfigDict(extra=\"forbid\")\n    contract: Address\n    block: ChainBlock\n    calls: dict[str, str]\n\n\ndef read_feed(bundle: FeedBundle, address: str, description: str) -> dict:\n    if bundle.contract.lower() != address.lower():\n        raise ValueError(\"unexpected Chainlink feed address\")\n    try:\n        (decimals,) = decode_return((\"uint8\",), bundle.calls[\"decimals\"])\n        (actual_description,) = decode_return((\"string\",), bundle.calls[\"description\"])\n        round_id, answer, started_at, updated_at, answered_in_round = decode_return(\n            ROUND_TYPES, bundle.calls[\"round\"]\n        )\n    except KeyError as error:\n        raise ValueError(\"incomplete Chainlink evidence\") from error\n    if actual_description != description or decimals != 8:\n        raise ValueError(\"unexpected Chainlink instrument or decimals\")\n    timestamp = epoch_seconds(updated_at)\n    if (\n        round_id <= 0\n        or answer <= 0\n        or started_at <= 0\n        or updated_at <= 0\n        or started_at > updated_at\n    ):\n        raise ValueError(\"incomplete or invalid Chainlink round\")\n    if timestamp > bundle.block.timestamp:\n        raise ValueError(\"Chainlink update is later than its block\")\n    with localcontext() as context:\n        context.prec = 80\n        value = Decimal(answer).scaleb(-decimals)\n    return {\"value\": value, \"timestamp\": timestamp, \"round_id\": str(round_id)}\n\n\ndef normalize_feed(\n    payload: dict, *, received_at: datetime, latency_ms: float, dataset: Dataset = \"live\"\n) -> Observation:\n    bundle = FeedBundle.model_validate(payload)\n    feed = read_feed(bundle, ETH_USD_FEED, \"ETH / USD\")\n    return Observation(\n        dataset=dataset,\n        source=\"chainlink\",\n        source_type=\"oracle\",\n        provider_event_id=f\"1:{ETH_USD_FEED}:{feed['round_id']}\",\n        value=feed[\"value\"],\n        timestamp=feed[\"timestamp\"],\n        received_at=received_at,\n        latency_ms=latency_ms,\n        raw_payload=payload,\n        provenance=SourceProvenance(\n            protocol=\"chainlink\",\n            instrument=\"ETH/USD\",\n            verification=\"rpc_checked\",\n            dependencies=(\"chainlink_eth_usd\", \"configured_ethereum_rpc\"),\n            block=bundle.block,\n            contract=ETH_USD_FEED,\n        ),\n    )\n\n\nclass ChainlinkConnector:\n    def __init__(\n        self,\n        client: httpx.AsyncClient,\n        max_future_skew_seconds: float = 5,\n        *,\n        rpc_url: str = \"https://ethereum-rpc.publicnode.com\",\n        block_tag: str = \"latest\",\n    ):\n        self.rpc = EthereumRPC(client, rpc_url)\n        self.max_future_skew_seconds = max_future_skew_seconds\n        self.block_tag = block_tag\n\n    async def fetch(self) -> Observation:\n        started = time.perf_counter()\n        block = await self.rpc.block(self.block_tag)\n        calls = await self.rpc.calls(ETH_USD_FEED, FEED_CALLS, block)\n        await self.rpc.ensure_canonical(block)\n        observation = normalize_feed(\n            {\"contract\": ETH_USD_FEED, \"block\": block.model_dump(mode=\"json\"), \"calls\": calls},\n            received_at=datetime.now(UTC),\n            latency_ms=(time.perf_counter() - started) * 1000,\n        )\n        return check_clock(observation, self.max_future_skew_seconds)\n",
+      "content_sha256": "185f9637ce1a855b7920d84d576cdb1090299783b40efea317527b8763cacaef"
+    },
+    {
+      "id": "code:coinbase",
+      "kind": "implementation",
+      "reference": "src/verdict/connectors/coinbase.py",
+      "captured_at": "2026-10-19T18:00:00Z",
+      "content": "import time\nfrom datetime import UTC, datetime\nfrom typing import Literal\n\nimport httpx\nfrom pydantic import AwareDatetime, BaseModel, Field\n\nfrom verdict.connectors.common import check_clock\nfrom verdict.models import Dataset, Observation, PositiveDecimal\n\nBASE_URL = \"https://api.exchange.coinbase.com\"\n\n\nclass CoinbaseTicker(BaseModel):\n    trade_id: int = Field(ge=0, le=9223372036854775807, strict=True)\n    price: PositiveDecimal\n    time: AwareDatetime\n\n\nclass CoinbaseMatch(CoinbaseTicker):\n    type: Literal[\"match\", \"last_match\"]\n    product_id: Literal[\"ETH-USD\"]\n\n\ndef normalize_ticker(\n    payload: dict,\n    *,\n    received_at: datetime,\n    latency_ms: float,\n    dataset: Dataset = \"live\",\n    asset: Literal[\"ETH-USD\"] = \"ETH-USD\",\n) -> Observation:\n    # Validate through Observation before price conversion to reject binary floats.\n    if not isinstance(payload, dict):\n        raise ValueError(\"expected a Coinbase ticker object\")\n    if isinstance(payload.get(\"price\"), (float, bool)):\n        raise ValueError(\"Coinbase price must be a decimal string\")\n    if \"type\" in payload or \"product_id\" in payload:\n        CoinbaseMatch.model_validate(payload)\n    ticker = CoinbaseTicker.model_validate(payload)\n    return Observation(\n        dataset=dataset,\n        asset=asset,\n        provider_event_id=str(ticker.trade_id),\n        value=ticker.price,\n        timestamp=ticker.time,\n        received_at=received_at,\n        latency_ms=latency_ms,\n        raw_payload=payload,\n    )\n\n\nclass CoinbaseConnector:\n    def __init__(self, client: httpx.AsyncClient, max_future_skew_seconds: float = 5):\n        self.client = client\n        self.max_future_skew_seconds = max_future_skew_seconds\n\n    async def fetch(self) -> Observation:\n        started = time.perf_counter()\n        response = await self.client.get(f\"{BASE_URL}/products/ETH-USD/ticker\")\n        received_at = datetime.now(UTC)\n        elapsed_ms = (time.perf_counter() - started) * 1000\n        response.raise_for_status()\n        observation = normalize_ticker(\n            response.json(), received_at=received_at, latency_ms=elapsed_ms\n        )\n        return check_clock(observation, self.max_future_skew_seconds)\n",
+      "content_sha256": "b4cc3c7dfc65f4c163961d0bd4f0614fa550473fe77c85ae42199846a1b33568"
+    },
+    {
+      "id": "code:ethereum",
+      "kind": "implementation",
+      "reference": "src/verdict/connectors/ethereum.py",
+      "captured_at": "2026-10-19T18:00:00Z",
+      "content": "\"\"\"Read-only Ethereum JSON-RPC and strict ABI decoding. No wallet or transactions.\"\"\"\n\nimport asyncio\nimport itertools\nimport re\nfrom datetime import UTC, datetime\nfrom typing import Literal\n\nimport httpx\nfrom eth_abi import decode, encode\nfrom eth_abi.exceptions import DecodingError, EncodingError\nfrom eth_utils import keccak\n\nfrom verdict.connectors.common import epoch_seconds\nfrom verdict.models import ChainBlock\n\nETH_USD_FEED = \"0x5f4ec3df9cbd43714fe2740f5e3616155c5b8419\"\nUSDC_USD_FEED = \"0x8fffffd4afb6115b954bd326cbe7b4ba576818f6\"\nUSDC = \"0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48\"\nWETH = \"0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2\"\nUNISWAP_FACTORY = \"0x1f98431c8ad98523631ae4a59f267346ea31f984\"\nROUND_TYPES = (\"uint80\", \"int256\", \"uint256\", \"uint256\", \"uint80\")\nSLOT0_TYPES = (\"uint160\", \"int24\", \"uint16\", \"uint16\", \"uint16\", \"uint8\", \"bool\")\n\n\nclass RPCError(ValueError):\n    pass\n\n\nclass ReorgDetected(RPCError):\n    pass\n\n\ndef call_data(signature: str, types: tuple[str, ...] = (), args: tuple = ()) -> str:\n    return \"0x\" + (keccak(text=signature)[:4] + encode(types, args)).hex()\n\n\ndef decode_return(types: tuple[str, ...], value: str) -> tuple:\n    try:\n        if not isinstance(value, str) or not value.startswith(\"0x\") or len(value) > 32768:\n            raise ValueError(\"invalid contract return data\")\n        raw = bytes.fromhex(value[2:])\n        decoded = decode(types, raw, strict=True)\n        if encode(types, decoded) != raw:\n            raise ValueError(\"noncanonical contract return data\")\n        return decoded\n    except (DecodingError, EncodingError, ValueError, TypeError) as error:\n        raise ValueError(\"invalid ABI response\") from error\n\n\ndef quantity(value: str) -> int:\n    if not isinstance(value, str) or not re.fullmatch(\n        r\"0x(?:0|[1-9a-fA-F][0-9a-fA-F]{0,63})\", value\n    ):\n        raise RPCError(\"invalid RPC quantity\")\n    try:\n        return int(value, 16)\n    except ValueError as error:\n        raise RPCError(\"invalid RPC quantity\") from error\n\n\nclass EthereumRPC:\n    def __init__(self, client: httpx.AsyncClient, url: str):\n        self.client = client\n        self.url = url\n        self.ids = itertools.count(1)\n\n    async def request(self, method: str, params: list):\n        request_id = next(self.ids)\n        response = await self.client.post(\n            self.url,\n            json={\n                \"jsonrpc\": \"2.0\",\n                \"id\": request_id,\n                \"method\": method,\n                \"params\": params,\n            },\n        )\n        response.raise_for_status()\n        payload = response.json()\n        if not isinstance(payload, dict) or payload.get(\"jsonrpc\") != \"2.0\":\n            raise RPCError(\"invalid RPC envelope\")\n        if type(payload.get(\"id\")) is not int or payload[\"id\"] != request_id:\n            raise RPCError(\"RPC response identity mismatch\")\n        if \"error\" in payload or payload.get(\"result\") is None:\n            raise RPCError(\"RPC returned an error or empty result\")\n        return payload[\"result\"]\n\n    async def block(self, tag: Literal[\"latest\", \"safe\", \"finalized\"]) -> ChainBlock:\n        chain_id = quantity(await self.request(\"eth_chainId\", []))\n        if chain_id != 1:\n            raise RPCError(\"expected Ethereum mainnet (chain ID 1)\")\n        payload = await self.request(\"eth_getBlockByNumber\", [tag, False])\n        if not isinstance(payload, dict):\n            raise RPCError(\"invalid block result\")\n        try:\n            block = ChainBlock(\n                number=quantity(payload[\"number\"]),\n                hash=payload[\"hash\"],\n                timestamp=epoch_seconds(quantity(payload[\"timestamp\"])),\n                tag=tag,\n            )\n        except (KeyError, TypeError) as error:\n            raise RPCError(\"incomplete block result\") from error\n        if block.timestamp > datetime.now(UTC):\n            raise RPCError(\"RPC block timestamp is in the future\")\n        return block\n\n    async def call(self, address: str, data: str, block: ChainBlock) -> str:\n        return await self.request(\n            \"eth_call\",\n            [\n                {\"to\": address, \"data\": data},\n                {\"blockHash\": block.hash, \"requireCanonical\": True},\n            ],\n        )\n\n    async def calls(self, address: str, signatures: dict[str, str], block: ChainBlock) -> dict:\n        results = await asyncio.gather(\n            *(self.call(address, call_data(signature), block) for signature in signatures.values())\n        )\n        return dict(zip(signatures, results, strict=True))\n\n    async def ensure_canonical(self, block: ChainBlock) -> None:\n        current = await self.request(\"eth_getBlockByNumber\", [hex(block.number), False])\n        if not isinstance(current, dict) or current.get(\"hash\") != block.hash:\n            raise ReorgDetected(\"block changed during source read\")\n",
+      "content_sha256": "ee71cfaf2df433dd30615256f0be35ef230619be6b6902ca4839f6f00d99e4b3"
+    },
+    {
+      "id": "code:kraken",
+      "kind": "implementation",
+      "reference": "src/verdict/connectors/kraken.py",
+      "captured_at": "2026-10-19T18:00:00Z",
+      "content": "import time\nfrom datetime import UTC, datetime\n\nimport httpx\n\nfrom verdict.connectors.common import check_clock, epoch_seconds\nfrom verdict.models import Dataset, Observation\n\nBASE_URL = \"https://api.kraken.com\"\n\n\ndef normalize_trades(\n    payload: dict, *, received_at: datetime, latency_ms: float, dataset: Dataset = \"live\"\n) -> Observation:\n    if not isinstance(payload, dict) or payload.get(\"error\") != []:\n        raise ValueError(\"Kraken returned a provider error\")\n    result = payload.get(\"result\")\n    if not isinstance(result, dict) or set(result) != {\"XETHZUSD\", \"last\"}:\n        raise ValueError(\"expected Kraken ETH/USD trades with an explicit USD market\")\n    trades = result[\"XETHZUSD\"]\n    if not isinstance(trades, list) or not trades:\n        raise ValueError(\"Kraken returned no trades\")\n    for trade in trades:\n        if not isinstance(trade, list) or len(trade) != 7:\n            raise ValueError(\"invalid Kraken trade shape\")\n        if type(trade[6]) is not int or trade[6] < 0:\n            raise ValueError(\"invalid Kraken trade ID\")\n    trade = max(trades, key=lambda row: (epoch_seconds(row[2]), row[6]))\n    return Observation(\n        dataset=dataset,\n        source=\"kraken\",\n        provider_event_id=str(trade[6]),\n        value=trade[0],\n        timestamp=epoch_seconds(trade[2]),\n        received_at=received_at,\n        latency_ms=latency_ms,\n        raw_payload=payload,\n    )\n\n\nclass KrakenConnector:\n    def __init__(self, client: httpx.AsyncClient, max_future_skew_seconds: float = 5):\n        self.client = client\n        self.max_future_skew_seconds = max_future_skew_seconds\n\n    async def fetch(self) -> Observation:\n        started = time.perf_counter()\n        response = await self.client.get(\n            f\"{BASE_URL}/0/public/Trades\", params={\"pair\": \"ETHUSD\", \"count\": 1}\n        )\n        received_at = datetime.now(UTC)\n        elapsed_ms = (time.perf_counter() - started) * 1000\n        response.raise_for_status()\n        # Preserve Kraken's fractional epoch timestamp instead of rounding via float.\n        observation = normalize_trades(\n            response.json(parse_float=str), received_at=received_at, latency_ms=elapsed_ms\n        )\n        return check_clock(observation, self.max_future_skew_seconds)\n",
+      "content_sha256": "3395cd8199c98841a2fb6320f14a30048e51941837ea9ee385a776b25f5f1c0e"
+    },
+    {
+      "id": "code:pyth",
+      "kind": "implementation",
+      "reference": "src/verdict/connectors/pyth.py",
+      "captured_at": "2026-10-19T18:00:00Z",
+      "content": "import time\nfrom datetime import UTC, datetime\nfrom decimal import Decimal, localcontext\nfrom typing import Literal\n\nimport httpx\nfrom pydantic import BaseModel, Field\n\nfrom verdict.connectors.common import check_clock, epoch_seconds\nfrom verdict.models import Dataset, Observation, SourceProvenance\n\nETH_USD_ID = \"ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace\"\nHERMES_URL = \"https://hermes.pyth.network\"\n\n\nclass Price(BaseModel):\n    price: str = Field(pattern=r\"^[0-9]{1,19}$\")\n    conf: str = Field(pattern=r\"^[0-9]{1,20}$\")\n    expo: int = Field(ge=-18, le=0, strict=True)\n    publish_time: int = Field(gt=0, strict=True)\n\n\nclass Metadata(BaseModel):\n    slot: int = Field(ge=0, le=9223372036854775807, strict=True)\n\n\nclass ParsedPrice(BaseModel):\n    id: Literal[ETH_USD_ID]\n    price: Price\n    metadata: Metadata\n\n\nclass Binary(BaseModel):\n    encoding: Literal[\"hex\"]\n    data: list[str] = Field(min_length=1, max_length=16)\n\n\nclass HermesResponse(BaseModel):\n    binary: Binary\n    parsed: list[ParsedPrice] = Field(min_length=1, max_length=1)\n\n\ndef normalize_price(\n    payload: dict, *, received_at: datetime, latency_ms: float, dataset: Dataset = \"live\"\n) -> Observation:\n    response = HermesResponse.model_validate(payload)\n    for message in response.binary.data:\n        if (\n            not message\n            or len(message) % 2\n            or len(message) > 1_000_000\n            or any(character not in \"0123456789abcdefABCDEF\" for character in message)\n        ):\n            raise ValueError(\"invalid Pyth update message\")\n        try:\n            bytes.fromhex(message)\n        except ValueError as error:\n            raise ValueError(\"invalid Pyth update message\") from error\n    parsed = response.parsed[0]\n    price = parsed.price\n    if not 0 < int(price.price) <= 9223372036854775807 or int(price.conf) > 18446744073709551615:\n        raise ValueError(\"Pyth price or confidence is outside its wire integer range\")\n    with localcontext() as context:\n        context.prec = 80\n        value = Decimal(price.price).scaleb(price.expo)\n        confidence = Decimal(price.conf).scaleb(price.expo)\n    return Observation(\n        dataset=dataset,\n        source=\"pyth\",\n        source_type=\"oracle\",\n        provider_event_id=f\"{price.publish_time}:{parsed.metadata.slot}\",\n        event_sequence=parsed.metadata.slot,\n        value=value,\n        timestamp=epoch_seconds(price.publish_time),\n        received_at=received_at,\n        latency_ms=latency_ms,\n        raw_payload=payload,\n        provenance=SourceProvenance(\n            protocol=\"pyth\",\n            instrument=\"ETH/USD\",\n            verification=\"hermes_unverified\",\n            dependencies=(\"pyth_network\", \"hermes_service\"),\n            pyth_feed_id=ETH_USD_ID,\n            pyth_confidence_usd=confidence,\n        ),\n    )\n\n\nclass PythConnector:\n    def __init__(\n        self,\n        client: httpx.AsyncClient,\n        max_future_skew_seconds: float = 5,\n        *,\n        hermes_url: str = HERMES_URL,\n        api_key: str = \"\",\n    ):\n        self.client = client\n        self.max_future_skew_seconds = max_future_skew_seconds\n        self.hermes_url = hermes_url.rstrip(\"/\")\n        self.api_key = api_key\n\n    async def fetch(self) -> Observation:\n        started = time.perf_counter()\n        response = await self.client.get(\n            f\"{self.hermes_url}/v2/updates/price/latest\",\n            headers={\n                \"Authorization\": f\"Bearer {self.api_key}\",\n            }\n            if self.api_key\n            else {},\n            params={\n                \"ids[]\": ETH_USD_ID,\n                \"encoding\": \"hex\",\n                \"parsed\": \"true\",\n            },\n        )\n        received_at = datetime.now(UTC)\n        response.raise_for_status()\n        observation = normalize_price(\n            response.json(),\n            received_at=received_at,\n            latency_ms=(time.perf_counter() - started) * 1000,\n        )\n        return check_clock(observation, self.max_future_skew_seconds)\n",
+      "content_sha256": "005bd1364ad7811f7ba4053d983f91623bbab62a7733f695c5c6db9fe1469da9"
+    },
+    {
+      "id": "code:registry",
+      "kind": "implementation",
+      "reference": "src/verdict/connectors/registry.py",
+      "captured_at": "2026-10-19T18:00:00Z",
+      "content": "import httpx\n\nfrom verdict.config import Settings\nfrom verdict.connectors.binance_us import BinanceUSConnector\nfrom verdict.connectors.binance_us import normalize_trades as normalize_binance_us\nfrom verdict.connectors.chainlink import ChainlinkConnector, normalize_feed\nfrom verdict.connectors.coinbase import CoinbaseConnector, normalize_ticker\nfrom verdict.connectors.kraken import KrakenConnector\nfrom verdict.connectors.kraken import normalize_trades as normalize_kraken\nfrom verdict.connectors.pyth import PythConnector, normalize_price\nfrom verdict.connectors.uniswap import UniswapConnector, normalize_pool\nfrom verdict.models import Source\n\nCONNECTORS = {\n    \"coinbase\": CoinbaseConnector,\n    \"kraken\": KrakenConnector,\n    \"binance_us\": BinanceUSConnector,\n    \"chainlink\": ChainlinkConnector,\n    \"pyth\": PythConnector,\n    \"uniswap_v3\": UniswapConnector,\n}\nNORMALIZERS = {\n    \"coinbase\": normalize_ticker,\n    \"kraken\": normalize_kraken,\n    \"binance_us\": normalize_binance_us,\n    \"chainlink\": normalize_feed,\n    \"pyth\": normalize_price,\n    \"uniswap_v3\": normalize_pool,\n}\n\n\ndef build_connector(source: Source, client: httpx.AsyncClient, settings: Settings):\n    options = {}\n    if source in (\"chainlink\", \"uniswap_v3\"):\n        options.update(rpc_url=settings.ethereum_rpc_url, block_tag=settings.ethereum_block_tag)\n    if source == \"uniswap_v3\":\n        options[\"conversion_max_age_seconds\"] = settings.usdc_conversion_max_age_seconds\n    if source == \"pyth\":\n        options.update(\n            hermes_url=settings.pyth_hermes_url,\n            api_key=settings.pyth_api_key.get_secret_value(),\n        )\n    return CONNECTORS[source](client, settings.max_future_skew_seconds, **options)\n\n\ndef poll_interval(source: Source, settings: Settings) -> float:\n    if source in (\"chainlink\", \"uniswap_v3\"):\n        return settings.onchain_poll_interval_seconds\n    return settings.poll_interval_seconds\n",
+      "content_sha256": "0fd1bc521d168801489aa46baeb9cce8fa27e6a39994316b86787ba57436999c"
+    },
+    {
+      "id": "code:uniswap",
+      "kind": "implementation",
+      "reference": "src/verdict/connectors/uniswap.py",
+      "captured_at": "2026-10-19T18:00:00Z",
+      "content": "import asyncio\nimport time\nfrom datetime import UTC, datetime\nfrom decimal import ROUND_HALF_EVEN, Decimal, localcontext\n\nimport httpx\nfrom pydantic import BaseModel, ConfigDict, Field\n\nfrom verdict.connectors.chainlink import FEED_CALLS, FeedBundle, read_feed\nfrom verdict.connectors.common import check_clock\nfrom verdict.connectors.ethereum import (\n    SLOT0_TYPES,\n    UNISWAP_FACTORY,\n    USDC,\n    USDC_USD_FEED,\n    WETH,\n    EthereumRPC,\n    call_data,\n    decode_return,\n)\nfrom verdict.models import (\n    Address,\n    ChainBlock,\n    Dataset,\n    Observation,\n    QuoteConversion,\n    SourceProvenance,\n)\n\nPOOL_FEE = 500\nPOOL_CALLS = {\n    \"token0\": \"token0()\",\n    \"token1\": \"token1()\",\n    \"slot0\": \"slot0()\",\n    \"liquidity\": \"liquidity()\",\n}\n\n\nclass PoolBundle(BaseModel):\n    model_config = ConfigDict(extra=\"forbid\")\n    factory: Address\n    factory_pool_result: str\n    pool: Address\n    block: ChainBlock\n    calls: dict[str, str]\n    token_decimals: dict[str, str]\n    conversion: FeedBundle\n    conversion_max_age_seconds: int = Field(ge=1, le=172800, strict=True)\n\n\ndef normalize_pool(\n    payload: dict, *, received_at: datetime, latency_ms: float, dataset: Dataset = \"live\"\n) -> Observation:\n    bundle = PoolBundle.model_validate(payload)\n    if bundle.factory.lower() != UNISWAP_FACTORY:\n        raise ValueError(\"unexpected Uniswap factory\")\n    (pool,) = decode_return((\"address\",), bundle.factory_pool_result)\n    if pool.lower() != bundle.pool.lower() or int(pool, 16) == 0:\n        raise ValueError(\"pool does not match the factory result\")\n    if bundle.conversion.block != bundle.block:\n        raise ValueError(\"pool and USD conversion must use the same block\")\n    try:\n        (token0,) = decode_return((\"address\",), bundle.calls[\"token0\"])\n        (token1,) = decode_return((\"address\",), bundle.calls[\"token1\"])\n        (decimals0,) = decode_return((\"uint8\",), bundle.token_decimals[USDC])\n        (decimals1,) = decode_return((\"uint8\",), bundle.token_decimals[WETH])\n        slot = decode_return(SLOT0_TYPES, bundle.calls[\"slot0\"])\n        (liquidity,) = decode_return((\"uint128\",), bundle.calls[\"liquidity\"])\n    except KeyError as error:\n        raise ValueError(\"incomplete Uniswap evidence\") from error\n    if (token0.lower(), token1.lower(), decimals0, decimals1) != (USDC, WETH, 6, 18):\n        raise ValueError(\"unexpected Uniswap pair or token decimals\")\n    sqrt_price = slot[0]\n    if sqrt_price <= 0 or liquidity <= 0 or slot[-1] is not True:\n        raise ValueError(\"uninitialized, empty, or locked Uniswap pool\")\n    conversion = read_feed(bundle.conversion, USDC_USD_FEED, \"USDC / USD\")\n    age = (bundle.block.timestamp - conversion[\"timestamp\"]).total_seconds()\n    if age > bundle.conversion_max_age_seconds:\n        raise ValueError(\"USD conversion feed is stale\")\n    with localcontext() as context:\n        context.prec = 100\n        # token1/token0 is raw WETH per raw USDC; invert and adjust 18/6 decimals.\n        usdc_per_weth = Decimal(2**192) * Decimal(10**12) / Decimal(sqrt_price**2)\n        value = (usdc_per_weth * conversion[\"value\"]).quantize(\n            Decimal(\"0.000000000000000001\"), rounding=ROUND_HALF_EVEN\n        )\n    return Observation(\n        dataset=dataset,\n        source=\"uniswap_v3\",\n        source_type=\"dex\",\n        provider_event_id=f\"1:{pool.lower()}:{bundle.block.hash.lower()}\",\n        event_sequence=bundle.block.number,\n        value=value,\n        timestamp=bundle.block.timestamp,\n        received_at=received_at,\n        latency_ms=latency_ms,\n        raw_payload=payload,\n        provenance=SourceProvenance(\n            protocol=\"uniswap_v3\",\n            instrument=\"WETH/USDC fee=500 -> ETH/USD\",\n            verification=\"rpc_checked\",\n            block=bundle.block,\n            contract=bundle.pool,\n            dependencies=(\n                \"uniswap_v3_pool\",\n                \"weth_redemption\",\n                \"usdc\",\n                \"chainlink_usdc_usd\",\n                \"configured_ethereum_rpc\",\n            ),\n            native_wrapping_ratio=\"1:1 WETH redemption\",\n            pool_liquidity_raw=str(liquidity),\n            quote_conversion=QuoteConversion(\n                feed_address=USDC_USD_FEED,\n                round_id=conversion[\"round_id\"],\n                value=conversion[\"value\"],\n                updated_at=conversion[\"timestamp\"],\n                maximum_age_seconds=bundle.conversion_max_age_seconds,\n            ),\n        ),\n    )\n\n\nclass UniswapConnector:\n    def __init__(\n        self,\n        client: httpx.AsyncClient,\n        max_future_skew_seconds: float = 5,\n        *,\n        rpc_url: str = \"https://ethereum-rpc.publicnode.com\",\n        block_tag: str = \"latest\",\n        conversion_max_age_seconds: int = 86400,\n    ):\n        self.rpc = EthereumRPC(client, rpc_url)\n        self.max_future_skew_seconds = max_future_skew_seconds\n        self.block_tag = block_tag\n        self.conversion_max_age_seconds = conversion_max_age_seconds\n\n    async def fetch(self) -> Observation:\n        started = time.perf_counter()\n        block = await self.rpc.block(self.block_tag)\n        pool_result = await self.rpc.call(\n            UNISWAP_FACTORY,\n            call_data(\n                \"getPool(address,address,uint24)\",\n                (\"address\", \"address\", \"uint24\"),\n                (USDC, WETH, POOL_FEE),\n            ),\n            block,\n        )\n        (pool,) = decode_return((\"address\",), pool_result)\n        if int(pool, 16) == 0:\n            raise ValueError(\"configured Uniswap pool does not exist\")\n        calls, usdc_decimals, weth_decimals, conversion_calls = await asyncio.gather(\n            self.rpc.calls(pool, POOL_CALLS, block),\n            self.rpc.call(USDC, call_data(\"decimals()\"), block),\n            self.rpc.call(WETH, call_data(\"decimals()\"), block),\n            self.rpc.calls(USDC_USD_FEED, FEED_CALLS, block),\n        )\n        await self.rpc.ensure_canonical(block)\n        block_payload = block.model_dump(mode=\"json\")\n        observation = normalize_pool(\n            {\n                \"factory\": UNISWAP_FACTORY,\n                \"factory_pool_result\": pool_result,\n                \"pool\": pool,\n                \"block\": block_payload,\n                \"calls\": calls,\n                \"token_decimals\": {USDC: usdc_decimals, WETH: weth_decimals},\n                \"conversion\": {\n                    \"contract\": USDC_USD_FEED,\n                    \"block\": block_payload,\n                    \"calls\": conversion_calls,\n                },\n                \"conversion_max_age_seconds\": self.conversion_max_age_seconds,\n            },\n            received_at=datetime.now(UTC),\n            latency_ms=(time.perf_counter() - started) * 1000,\n        )\n        return check_clock(observation, self.max_future_skew_seconds)\n",
+      "content_sha256": "9c2690e83b6fa5a7dde5222e89b22dadaeae1dd474705762ca3cd1f167e0d857"
+    },
+    {
+      "id": "review:scope",
+      "kind": "review_note",
+      "reference": "VERDICT dependency review 2026-10-19",
+      "captured_at": "2026-10-19T18:00:00Z",
+      "content": "This review describes the checked-in connector implementation only. It does not verify actual deployments or upstream operators. Different venues are not evidence of independent economic actors. Price correlation is not lineage evidence. Exchange participants and infrastructure overlap are unknown. Chainlink ETH/USD and USDC/USD are distinct feeds sharing a protocol family; publisher, node-operator, and data-vendor overlap has not been established. Pyth publisher membership and overlaps have not been established. Hermes update bytes are retained but not signature-verified by this adapter. The configured Ethereum RPC setting is shared by Chainlink and Uniswap in build_connector; its actual operator and backend are not retained in observations. Uniswap's conversion uses Chainlink USDC/USD, with USDC and WETH asset exposure. Liquidity-provider and arbitrage overlaps are unknown. Unknown nodes are placeholders for missing evidence, not independent domains or assertions of actual overlap. All sources share this centrally operated VERDICT collector and its deployment infrastructure. These dependencies are not an exhaustive threat model.",
+      "content_sha256": "f7af45cb7368771de40fab1fd631e5a58c025e599b7c26dc03b49b5c1f787853"
+    }
+  ]
+}
