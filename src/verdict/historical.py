@@ -4,6 +4,7 @@ import asyncio
 import gzip
 import hashlib
 import json
+import logging
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -17,6 +18,7 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validato
 from verdict.connectors.coinbase import normalize_ticker
 from verdict.connectors.common import epoch_seconds
 from verdict.connectors.kraken import normalize_trades
+from verdict.event_identity import same_event_content
 from verdict.models import EXCHANGE_SOURCES, Observation
 from verdict.statistics import AnalysisPolicy, digest
 
@@ -26,6 +28,7 @@ ENDPOINTS = {
     "kraken": "https://api.kraken.com/0/public/Trades",
     "binance_us": "https://api.binance.us/api/v3/aggTrades",
 }
+logger = logging.getLogger(__name__)
 
 
 class HistoricalCase(BaseModel):
@@ -38,6 +41,8 @@ class HistoricalCase(BaseModel):
 
     @model_validator(mode="after")
     def bounds(self):
+        if self.start.microsecond or self.end.microsecond:
+            raise ValueError("historical boundaries must use whole seconds")
         if not timedelta(seconds=120) <= self.end - self.start <= timedelta(hours=1):
             raise ValueError("historical cases require 120..3600 seconds")
         return self
@@ -77,6 +82,8 @@ class HistoricalSuite(BaseModel):
             raise ValueError("calibration must precede every held-out history")
         if len(set(self.policy.sources)) != len(self.policy.sources):
             raise ValueError("analysis sources must be unique")
+        if not set(EXCHANGE_SOURCES) <= set(self.policy.sources):
+            raise ValueError("historical policy must include all three exchange sources")
         return self
 
     @property
@@ -104,14 +111,44 @@ class HistoryFetcher:
         self.client, self.source = client, source
         self.max_requests, self.sleep = max_requests, sleep
         self.pages: list[dict] = []
+        self.requests = 0
 
     async def get(self, params: dict):
-        if len(self.pages) >= self.max_requests:
-            raise HistoryCaptureError("historical request budget exceeded")
-        # One request at a time per venue, including cursor discovery.
-        await self.sleep(0.4 if self.source == "coinbase" else 1)
-        response = await self.client.get(ENDPOINTS[self.source], params=params)
-        response.raise_for_status()
+        for retry in range(3):
+            if self.requests >= self.max_requests:
+                raise HistoryCaptureError("historical request budget exceeded")
+            # One request at a time per venue, including cursor discovery and retries.
+            await self.sleep(0.4 if self.source == "coinbase" else 1)
+            self.requests += 1
+            try:
+                response = await self.client.get(ENDPOINTS[self.source], params=params)
+                response.raise_for_status()
+                break
+            except (httpx.TransportError, httpx.HTTPStatusError) as error:
+                if isinstance(error, httpx.HTTPStatusError) and error.response.status_code not in (
+                    429,
+                    500,
+                    502,
+                    503,
+                    504,
+                ):
+                    raise
+                if retry == 2:
+                    raise
+                delay = 2 ** (retry + 1)
+                if isinstance(error, httpx.HTTPStatusError):
+                    try:
+                        delay = max(
+                            delay, min(60, float(error.response.headers.get("Retry-After", "0")))
+                        )
+                    except ValueError:
+                        pass
+                logger.warning(
+                    "history_request_retry source=%s error_type=%s",
+                    self.source,
+                    type(error).__name__,
+                )
+                await self.sleep(delay)
         payload = response.json(parse_float=str)
         self.pages.append(
             {
@@ -177,6 +214,10 @@ class HistoryFetcher:
                 raise HistoryCaptureError("Kraken history ended before requested boundary")
             rows = result["XETHZUSD"]
             latest = normalize_trades(payload, received_at=end, latency_ms=0)
+            if any(
+                epoch_seconds(left[2]) > epoch_seconds(right[2]) for left, right in pairwise(rows)
+            ):
+                raise HistoryCaptureError("Kraken historical events are not ordered")
             if latest.timestamp >= end:
                 return
             next_cursor = result["last"]
@@ -248,7 +289,11 @@ async def fetch_history(suite_path: Path, directory: Path) -> list[dict]:
             for case in suite.cases:
                 path = capture_path(directory, case, source)
                 if path.exists():
-                    raise FileExistsError(f"retained history already exists: {path}")
+                    load_capture(
+                        json.loads(gzip.decompress(path.read_bytes())), suite, case, source
+                    )
+                    results.append({"case": case.name, "source": source, "retained": True})
+                    continue
                 fetcher = HistoryFetcher(client, source)
                 data = await fetcher.capture(suite, case)
                 # Validate the retained representation before creating the archive.
@@ -335,7 +380,7 @@ def load_capture(
                 continue
             row = row.model_copy(update={"received_at": row.timestamp + delay})
             previous = collected.get(row.observation_id)
-            if previous and previous.model_dump() != row.model_dump():
+            if previous and not same_event_content(previous, row):
                 raise HistoryCaptureError("conflicting historical provider event")
-            collected[row.observation_id] = row
+            collected.setdefault(row.observation_id, row)
     return sorted(collected.values(), key=lambda row: (row.timestamp, row.observation_id))

@@ -196,7 +196,8 @@ def paired_metrics(
             original = next(item for item in baseline.sources if item.source == "coinbase")
             modified = next(item for item in experiment.sources if item.source == "coinbase")
             if (
-                original.exclusion_reasons
+                baseline.status != "analyzed"
+                or original.exclusion_reasons
                 or modified.value is None
                 or original.timestamp < case.start + timedelta(seconds=spec["start"])
             ):
