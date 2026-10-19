@@ -118,6 +118,8 @@ def test_database_failure_rolls_back_receipt_and_evidence(store, market_observat
     "changes",
     [
         {"version": 2},
+        {"version": True},
+        {"version": 1.0},
         {"source": "kraken"},
         {"http_status": 200},
         {"error_type": "ValueError"},
@@ -143,6 +145,30 @@ def test_replay_is_rejected_at_producer_and_storage_boundary(store, market_obser
         store.consume_attempt(bypassed)
     assert store.health() == {}
     assert receipts(store) == 0
+
+
+@pytest.mark.parametrize("missing", ["version", "attempt_id", "attempted_at", "source"])
+def test_wire_requires_stable_identity_and_time(market_observation, missing):
+    payload = attempt(market_observation(dataset="live")).model_dump(mode="json")
+    del payload[missing]
+    with pytest.raises(ValueError):
+        QueuedAttempt.from_payload(json.dumps(payload))
+
+
+def test_missing_attempt_identity_is_never_recorded_or_acknowledged(store):
+    async def run():
+        config = settings()
+        async with fakeredis.aioredis.FakeRedis(decode_responses=True) as client:
+            worker = QueueConsumer(client, store, config)
+            await worker.ensure_group()
+            payload = json.dumps({"version": 1, "source": "coinbase", "error_type": "ConnectError"})
+            await client.xadd(config.redis_stream, {"payload": payload})
+            assert await worker.consume_once() == {"rejected": 1}
+            assert (await client.xpending(config.redis_stream, config.redis_group))["pending"] == 1
+            assert receipts(store) == 0
+            assert store.health() == {}
+
+    asyncio.run(run())
 
 
 async def leave_pending(client, config, queued, consumer="crashed"):
@@ -536,6 +562,40 @@ def test_cli_rejects_stream_and_redis_transport(monkeypatch):
     with pytest.raises(SystemExit) as error:
         main()
     assert error.value.code == 2
+
+
+def test_cli_end_to_end_queue_consumption_and_dataset_api_isolation(store, monkeypatch, capsys):
+    from fastapi.testclient import TestClient
+
+    from verdict.api import create_app
+    from verdict.cli import main
+    from verdict.replay import load_observations, replay
+
+    replay(Path("simulations/six-provider.json"), store)
+    observations = load_observations(Path("simulations/six-provider.json"))
+    by_source = {row.source: row.model_copy(update={"dataset": "live"}) for row in observations}
+    for source, cls in CONNECTORS.items():
+        monkeypatch.setattr(cls, "fetch", AsyncMock(return_value=by_source[source]))
+    server = fakeredis.FakeServer()
+    monkeypatch.setattr(
+        "verdict.queue.redis_client",
+        lambda _: fakeredis.aioredis.FakeRedis(server=server, decode_responses=True),
+    )
+    monkeypatch.setattr("sys.argv", ["verdict", "ingest", "--transport", "redis", "--once"])
+    main()
+    assert all(item["status"] == "queued" for item in json.loads(capsys.readouterr().out))
+    assert store.list() == []
+    monkeypatch.setattr("sys.argv", ["verdict", "consume", "--once"])
+    main()
+    assert json.loads(capsys.readouterr().out) == {"inserted": 6}
+    assert len(store.list()) == 6
+    assert len(store.list(dataset="replay:six-provider")) == 6
+    with TestClient(create_app(settings(), store)) as client:
+        assert len(client.get("/v1/observations").json()) == 6
+        assert all(item["dataset"] == "live" for item in client.get("/v1/observations").json())
+        response = client.get("/v1/observations", params={"dataset": "replay:six-provider"})
+        assert all(item["dataset"] == "replay:six-provider" for item in response.json())
+        assert client.get("/v1/feed/ETH-USD").status_code == 503
 
 
 @pytest.mark.skipif(not os.getenv("VERDICT_TEST_REDIS_URL"), reason="Redis URL not provided")

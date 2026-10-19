@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from typing import Literal
 from uuid import UUID, uuid4
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from verdict.models import Observation, Source
 
@@ -21,6 +21,22 @@ class QueuedAttempt(BaseModel):
     observation: Observation | None = None
     error_type: str | None = Field(default=None, pattern=r"^[A-Za-z][A-Za-z0-9_]{0,127}$")
     http_status: int | None = Field(default=None, ge=100, le=599, strict=True)
+
+    @field_validator("version", mode="before")
+    @classmethod
+    def strict_version(cls, value):
+        if type(value) is not int:
+            raise ValueError("queue version must be an integer")
+        return value
+
+    @classmethod
+    def from_payload(cls, payload: str) -> "QueuedAttempt":
+        attempt = cls.model_validate_json(payload)
+        if not {"version", "attempt_id", "attempted_at", "source"} <= attempt.model_fields_set:
+            # Defaults are convenient for producers, but generating them during redelivery
+            # would turn one malformed message into a new attempt on every retry.
+            raise ValueError("wire envelope requires version, attempt ID, time, and source")
+        return attempt
 
     @model_validator(mode="after")
     def validate_attempt(self):

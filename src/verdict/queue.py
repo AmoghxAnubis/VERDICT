@@ -102,7 +102,7 @@ class QueueConsumer:
         try:
             if set(fields) != {"payload"}:
                 raise ValueError("expected one versioned attempt payload")
-            attempt = QueuedAttempt.model_validate_json(fields["payload"])
+            attempt = QueuedAttempt.from_payload(fields["payload"])
             outcome = await asyncio.to_thread(self.store.consume_attempt, attempt)
         except ValueError as error:
             # Retain poison/conflicting messages for operator inspection. Other entries proceed.
@@ -127,8 +127,10 @@ class QueueConsumer:
             count=settings.redis_batch_size,
         )
         self.claim_cursor = claimed[0]
-        if len(claimed) > 2 and claimed[2]:
-            logger.critical("queue_pending_payloads_lost count=%s", len(claimed[2]))
+        if len(claimed) != 3:
+            raise RuntimeError("Redis 7+ is required for pending payload loss detection")
+        if claimed[2]:
+            logger.critical("queue_pending_payloads_lost message_ids=%s", claimed[2])
             raise QueueDataLoss(
                 "pending Redis payloads were removed; evidence recovery is required"
             )
