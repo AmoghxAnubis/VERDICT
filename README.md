@@ -6,10 +6,9 @@ observations, then adds explainable aggregation and testnet publication.
 The backend provides a FastAPI service, decimal-safe observation schema, versioned
 SQLite/PostgreSQL storage, three exchange adapters, Chainlink/Pyth oracle reads,
 a Uniswap v3 pool adapter, optional Redis polling ingestion, persisted connector
-health, deterministic replay, and
-explainable statistical rounds with retained source provenance, and a versioned
-dependency registry with retained evidence and explicit unknown upstreams.
-Consensus, trust scores, the dashboard, and contracts are
+health, deterministic replay, explainable statistical rounds, a versioned dependency
+registry, and diagnostic source scores with retained evidence and cold-start rules.
+Consensus, dependency-aware weights, the dashboard, and contracts are
 tracked in [the roadmap](docs/ROADMAP.md). The feed endpoint returns an explicit
 unavailable response until consensus exists.
 
@@ -105,6 +104,8 @@ for evidence boundaries and operating limits.
 | `GET /v1/analysis/ETH-USD` | Read-only statistical diagnostics for a fixed cutoff |
 | `GET /v1/rounds` | Statistical rounds explicitly saved by the CLI |
 | `GET /v1/rounds/{round_id}` | One saved round, scoped to the selected dataset |
+| `GET /v1/scores` | Saved diagnostic source scores, scoped to the selected dataset |
+| `GET /v1/scores/{report_id}` | Score breakdowns, sampled decisions, and pinned evidence |
 | `GET /v1/dependencies` | Retained dependency registry versions |
 | `GET /v1/dependencies/{registry_id}` | Pinned graph and retained evidence |
 | `GET /v1/dependencies/{registry_id}/inspection` | Transitive dependencies, overlaps, and unknowns |
@@ -186,6 +187,18 @@ including Uniswap's Chainlink USD conversion and shared Ethereum/RPC dependencie
 Unknown upstream memberships remain explicit. Inspections are pinned to a retained
 version and do not establish source independence or assign voting weights. See
 [registry evidence, API access, and limits](docs/DEPENDENCIES.md).
+
+## Diagnostic source scores
+
+```powershell
+uv run --no-sync verdict score --registry-id <registry_id> --dataset replay:six-provider --at 2026-10-16T00:00:10Z
+```
+
+After migration, registry registration, and replay, this saves fixed-grid availability,
+freshness, and peer-consistency scores with explicit cold-start requirements. The
+short fixture demonstrates cold start. Scores retain every sampled decision and
+their input/registry/policy hashes. They are development quality indicators with
+publication disabled. See [scoring rules, CLI options, and limits](docs/SOURCE_SCORING.md).
 
 ## Historical evaluation
 

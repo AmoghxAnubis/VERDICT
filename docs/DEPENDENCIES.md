@@ -109,14 +109,14 @@ effective interval or proof that information was known at an observation cutoff.
 
 Existing statistical rounds and the frozen historical evaluation remain the
 original statistical artifacts. They do not acquire dependency-based weights or
-retroactively pin this review. The forthcoming trust/consensus round schema must
-retain an explicitly selected registry hash alongside the statistical policy and
-inputs, and separately address observation/deployment matching and review validity.
+retroactively pin this review. Separate [diagnostic scoring reports](SOURCE_SCORING.md)
+now pin an explicitly selected registry hash alongside their scoring policy and
+inputs. Consensus must still address observation/deployment matching and review validity.
 
 ## Remaining work
 
 Feed-specific membership evidence, independently supported upstream domains,
-deployment identities, evidence freshness/review policy, source scoring,
+deployment identities, evidence freshness/review policy, scoring calibration,
 dependency-aware weight caps, quarantine/recovery, and consensus remain pending.
 The shared collector is an operational failure domain; it is not automatically an
 economic voting domain. The weighting policy must state how it uses each edge type.

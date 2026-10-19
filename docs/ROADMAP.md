@@ -53,7 +53,7 @@ See [methods and measured results](HISTORICAL_VALIDATION.md).
 ## Batch 3: dependencies, trust, consensus, confidence
 
 - [x] Registry of known/unknown upstream dependencies with evidence and versions.
-- [ ] Historical consistency, uptime/freshness scoring, cold-start rules.
+- [x] Historical consistency, uptime/freshness scoring, cold-start rules.
 - [ ] Quarantine/recovery hysteresis and dependency-aware weight limits.
 - [ ] Weighted median with deterministic edge-case handling.
 - [ ] Quality-score confidence breakdown and minimum availability gates.
@@ -69,6 +69,15 @@ Shared Chainlink protocol, Ethereum/RPC, and collector dependencies are visible;
 verified upstream independence, deployment matching, and dependency-aware weights
 remain pending. Inspections always leave independent-domain count unknown and
 publication disabled. See [registry scope and operation](DEPENDENCIES.md).
+
+Fixed-grid diagnostic source scoring now records observed availability, freshness,
+leave-one-source-out consistency, comparison coverage, and cold-start caps. Reports
+pin the dependency registry, policy, and selected evidence, with separate immutable
+storage and read-only history/detail endpoints. Three other fresh providers are
+required for each comparison; provider independence is not inferred. This is an
+uncalibrated quality indicator, not a voting weight or confidence probability.
+Quarantine/recovery and dependency-aware weighting remain next. See
+[scoring policy and evidence](SOURCE_SCORING.md).
 
 ## Batch 4: dashboard and live updates
 

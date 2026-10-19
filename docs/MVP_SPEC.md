@@ -85,6 +85,12 @@ evidence and explicit unknowns, with deterministic transitive inspection and
 immutable version storage. It does not yet establish independent domains, enforce
 dependency-aware weights, or bind the statistical round schema to a registry.
 
+[Diagnostic source scoring](SOURCE_SCORING.md) now implements fixed-grid observed
+availability, freshness, peer consistency, and cold-start caps. Its separate saved
+reports pin the dependency registry and source evidence. These uncalibrated scores
+do not implement quarantine, dependency-adjusted weights, or confidence. Existing
+statistical rounds and the frozen historical benchmark remain unchanged.
+
 ## Result and failure contract
 
 Until consensus is implemented, `/v1/feed/ETH-USD` returns HTTP 503 with
