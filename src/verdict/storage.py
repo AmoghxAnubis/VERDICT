@@ -25,6 +25,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 from verdict.event_identity import same_event_content
 from verdict.models import Observation, Source
+from verdict.queue_models import QueuedAttempt
 
 
 class Base(DeclarativeBase):
@@ -96,6 +97,19 @@ class StreamCheckpointRow(Base):
     last_heartbeat: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class IngestionReceiptRow(Base):
+    __tablename__ = "ingestion_receipts"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    content_hash: Mapped[str] = mapped_column(String(64))
+    attempted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    processed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class AttemptConflict(ValueError):
+    """An ingestion attempt identity was reused with different content."""
+
+
 class CheckpointConflict(ValueError):
     """Another worker advanced this checkpoint; reload before attempting recovery."""
 
@@ -133,6 +147,7 @@ class ObservationStore:
             session.execute(text("SELECT source FROM connector_health LIMIT 1"))
             session.execute(text("SELECT id FROM analysis_rounds LIMIT 1"))
             session.execute(text("SELECT last_trade_id FROM stream_checkpoints LIMIT 1"))
+            session.execute(text("SELECT id FROM ingestion_receipts LIMIT 1"))
 
     @staticmethod
     def _insert(session: Session, observation: Observation) -> bool:

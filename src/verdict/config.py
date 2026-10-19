@@ -13,6 +13,13 @@ class Settings(BaseSettings):
     request_timeout_seconds: float = Field(default=10, gt=0, le=60)
     freshness_seconds: int = Field(default=30, ge=1, le=300)
     max_future_skew_seconds: int = Field(default=5, ge=0, le=60)
+    ingestion_transport: Literal["direct", "redis"] = "direct"
+    redis_url: SecretStr = SecretStr("redis://127.0.0.1:6379/0")
+    redis_stream: str = Field(default="verdict:ingestion:v1", min_length=1, max_length=128)
+    redis_group: str = Field(default="verdict-storage-v1", min_length=1, max_length=128)
+    redis_batch_size: int = Field(default=100, ge=1, le=1000)
+    redis_claim_idle_ms: int = Field(default=60000, ge=1000, le=86400000)
+    redis_block_ms: int = Field(default=1000, ge=1, le=10000)
     coinbase_stream_enabled: bool = False
     coinbase_websocket_url: str = "wss://ws-feed.exchange.coinbase.com"
     coinbase_stream_timeout_seconds: float = Field(default=10, ge=2, le=60)

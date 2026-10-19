@@ -17,6 +17,7 @@ dependencies = [
   "httpx>=0.28,<1",
   "psycopg[binary]>=3.2,<4",
   "pydantic-settings>=2.8,<3",
+  "redis>=6.4,<7",
   "sqlalchemy>=2.0,<3",
   "uvicorn>=0.34,<1",
   "websockets>=15,<18",
@@ -26,7 +27,7 @@ dependencies = [
 verdict = "verdict.cli:main"
 
 [dependency-groups]
-dev = ["pytest>=8.3,<10", "ruff>=0.11,<1"]
+dev = ["fakeredis>=2.31,<3", "pytest>=8.3,<10", "ruff>=0.11,<1"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/verdict"]
