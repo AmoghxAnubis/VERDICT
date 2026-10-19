@@ -218,4 +218,4 @@ storage contract against a disposable PostgreSQL database, set
 and uses an isolated replay namespace; do not point it at production.
 
 See [the MVP specification](docs/MVP_SPEC.md) for rules and assumptions, and
-[the original vision](VERDICT_Project_Document.md) for the full project document.
+[the original vision](VERDICT_Project_Document.md) for the full project document. 
