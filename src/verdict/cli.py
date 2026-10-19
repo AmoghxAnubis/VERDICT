@@ -11,6 +11,7 @@ from alembic.config import Config
 from pydantic import TypeAdapter
 
 from verdict.config import get_settings
+from verdict.dependencies import DependencyRegistry, bundled_registry, inspect_dependencies
 from verdict.ingestion import ingest_all, ingest_source
 from verdict.models import SOURCES, Dataset
 from verdict.replay import replay
@@ -48,6 +49,17 @@ def main() -> None:
     analysis.add_argument("--dataset", default="live")
     analysis.add_argument("--at", help="Timezone-aware cutoff, e.g. 2026-10-16T00:00:10Z")
     analysis.add_argument("--window", type=int, default=300, help="History window in seconds")
+    dependencies = commands.add_parser(
+        "dependencies", help="Version and inspect dependency evidence"
+    )
+    dependency_commands = dependencies.add_subparsers(dest="dependency_action", required=True)
+    register = dependency_commands.add_parser("register", help="Persist an immutable registry")
+    register.add_argument("--file", type=Path, help="Registry JSON; defaults to bundled review")
+    inspect = dependency_commands.add_parser(
+        "inspect", help="Inspect a retained registry by its hash"
+    )
+    inspect.add_argument("registry_id")
+    inspect.add_argument("--source", choices=SOURCES, action="append", dest="sources")
     history = commands.add_parser("history", help="Capture and evaluate frozen historical suites")
     history_commands = history.add_subparsers(dest="history_action", required=True)
     for action in ("fetch", "evaluate"):
@@ -149,6 +161,34 @@ def main() -> None:
                     raise SystemExit(1)
         elif args.command == "replay":
             print(json.dumps(replay(args.scenario, store), indent=2))
+        elif args.command == "dependencies":
+            if args.dependency_action == "register":
+                registry = (
+                    DependencyRegistry.model_validate_json(args.file.read_text(encoding="utf-8"))
+                    if args.file
+                    else bundled_registry()
+                )
+                inserted = store.save_dependency_registry(registry)
+                print(
+                    json.dumps(
+                        {
+                            "registry_id": registry.registry_id,
+                            "version": registry.version,
+                            "inserted": inserted,
+                        }
+                    )
+                )
+            else:
+                registry = store.get_dependency_registry(args.registry_id)
+                if registry is None:
+                    parser.error(
+                        "dependency registry not found; register the selected version first"
+                    )
+                try:
+                    report = inspect_dependencies(registry, tuple(args.sources or SOURCES))
+                except ValueError as error:
+                    parser.error(str(error))
+                print(json.dumps(report, indent=2))
         elif args.command == "analyze":
             dataset = TypeAdapter(Dataset).validate_python(args.dataset)
             if dataset.startswith("replay:") and args.at is None:

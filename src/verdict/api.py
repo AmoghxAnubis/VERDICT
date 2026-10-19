@@ -10,6 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from verdict import __version__
 from verdict.config import Settings, get_settings
+from verdict.dependencies import Sha256, inspect_dependencies
 from verdict.models import SOURCES, Asset, Dataset, ObservationData, Source
 from verdict.statistics import AnalysisPolicy, AnalysisReport, build_report
 from verdict.storage import ObservationStore, build_engine
@@ -130,6 +131,30 @@ def create_app(settings: Settings | None = None, store: ObservationStore | None 
         if report is None:
             raise HTTPException(404, detail="round not found in selected dataset")
         return report
+
+    @app.get("/v1/dependencies")
+    def dependency_registries(limit: Annotated[int, Query(ge=1, le=1000)] = 100):
+        return store.dependency_registries(limit=limit)
+
+    def retained_registry(registry_id: str):
+        registry = store.get_dependency_registry(registry_id)
+        if registry is None:
+            raise HTTPException(404, detail="dependency registry not found")
+        return registry
+
+    @app.get("/v1/dependencies/{registry_id}")
+    def dependency_registry(registry_id: Sha256):
+        return retained_registry(registry_id).envelope()
+
+    @app.get("/v1/dependencies/{registry_id}/inspection")
+    def dependency_inspection(
+        registry_id: Sha256, source: Annotated[list[Source] | None, Query()] = None
+    ):
+        registry = retained_registry(registry_id)
+        try:
+            return inspect_dependencies(registry, tuple(source or SOURCES))
+        except ValueError as error:
+            raise HTTPException(422, detail=str(error)) from None
 
     @app.get("/v1/feed/{asset}")
     def feed(asset: Asset) -> dict:
