@@ -110,3 +110,37 @@ Live long-outage recovery, sustained-load behavior, and PostgreSQL runtime remai
 unverified. Reconnect and gap failure cases were tested with controlled transports;
 the live check establishes connectivity and basic stream/REST interoperability.
 Redis Streams and held-out historical calibration remain later Batch 2 work.
+
+# Redis polling ingestion
+
+Validated on 2026-10-19 with the project-local Python 3.12 runtime.
+
+- 249 automated tests pass; real Redis and PostgreSQL integration tests are
+  skipped without their service URLs. Ruff lint and formatting checks pass.
+- All six polling adapters produce versioned envelopes; an end-to-end CLI test
+  queues and consumes six observations through the real SQLite store and API,
+  preserving decimal precision, receipt timestamps, provenance, and replay isolation.
+- Actual migrations from 0004 to 0005 preserve observations, connector health,
+  and Coinbase checkpoints. Fresh-schema/model agreement and earlier upgrade paths
+  pass. The SQL inbox survives reopened connections and concurrent receipt claims.
+- Redis emulation exercises pre-consumer backlog, idle claims and advancing scan
+  cursors, active-consumer protection, ambiguous publish replies, and crashes before
+  commit or after commit but before acknowledgement. Redelivery changes neither
+  evidence nor health counters; distinct repeated polls still count separately.
+- Database failure rolls back receipts/evidence/health and leaves messages pending.
+  Conflicts, malformed payloads, missing attempt identities/times, unknown versions,
+  and replay injection are rejected without acknowledgement. Valid entries still
+  progress; removed pending payloads cause a visible failure.
+- Queue producer CLI startup requires no database. Redis/direct selection,
+  incompatible streaming arguments, one-shot rejection exit codes, cancellation,
+  sanitized errors, and capped queue retries are covered. Compose configuration
+  validation passes for the optional queue profile.
+- CI now provisions Redis alongside PostgreSQL and includes an actual Redis
+  delivery/reclaim contract and the PostgreSQL SQL-inbox contract.
+
+The Docker daemon is unavailable locally. Real Redis/PostgreSQL service behavior,
+container builds, CI execution, persistence under host failure, sustained load,
+and failover have not been verified here. Redis tests use an emulator locally.
+Coinbase WebSocket ingestion retains direct checkpoint writes; only polling uses
+the optional queue. See [queue operation and limits](REDIS_INGESTION.md).
+Held-out historical calibration remains the next open Batch 2 implementation task.

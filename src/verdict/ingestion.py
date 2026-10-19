@@ -34,13 +34,15 @@ def retry_delay(error: Exception, failures: int, minimum: float) -> float:
 
 async def ingest_source(
     source: Source,
-    store: ObservationStore,
+    store: ObservationStore | None,
     settings: Settings,
     *,
     once: bool = False,
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     publisher: Callable[[QueuedAttempt], Awaitable[str]] | None = None,
 ) -> dict:
+    if publisher is None and store is None:
+        raise ValueError("direct ingestion requires a database store")
     if settings.ingestion_transport == "redis" and publisher is None:
         raise ValueError("Redis ingestion requires run_queued_ingestion")
     if source == "coinbase" and settings.coinbase_stream_enabled and not once:
@@ -123,7 +125,7 @@ async def ingest_coinbase(
 
 
 async def ingest_all(
-    store: ObservationStore,
+    store: ObservationStore | None,
     settings: Settings,
     *,
     once: bool = False,

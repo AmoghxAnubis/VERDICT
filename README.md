@@ -5,7 +5,8 @@ observations, then adds explainable aggregation and testnet publication.
 
 The backend provides a FastAPI service, decimal-safe observation schema, versioned
 SQLite/PostgreSQL storage, three exchange adapters, Chainlink/Pyth oracle reads,
-a Uniswap v3 pool adapter, persisted connector health, deterministic replay, and
+a Uniswap v3 pool adapter, optional Redis polling ingestion, persisted connector
+health, deterministic replay, and
 explainable statistical rounds with retained source provenance.
 Consensus, trust scores, the dashboard, and contracts are
 tracked in [the roadmap](docs/ROADMAP.md). The feed endpoint returns an explicit
