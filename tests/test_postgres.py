@@ -6,6 +6,7 @@ from alembic import command
 from alembic.config import Config
 
 from verdict.config import get_settings
+from verdict.dependencies import bundled_registry
 from verdict.queue_models import QueuedAttempt
 from verdict.statistics import analyze
 from verdict.storage import ObservationStore, build_engine
@@ -24,6 +25,12 @@ def test_postgres_migration_and_storage_contract(observation, monkeypatch):
         command.check(Config("alembic.ini"))
         store = ObservationStore(engine)
         store.check_ready()
+        registry = bundled_registry().model_copy(update={"version": f"test-{uuid.uuid4().hex}"})
+        assert store.save_dependency_registry(registry)
+        assert not store.save_dependency_registry(registry)
+        assert store.get_dependency_registry(registry.registry_id) == registry
+        with pytest.raises(ValueError, match="version conflict"):
+            store.save_dependency_registry(registry.model_copy(update={"scope": "changed"}))
         isolated = observation.model_copy(update={"dataset": f"replay:postgres-{uuid.uuid4().hex}"})
         assert store.add(isolated)
         assert not store.add(isolated)
