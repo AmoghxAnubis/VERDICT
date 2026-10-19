@@ -214,3 +214,36 @@ statistical policy. Historical calibration, real Redis/PostgreSQL runtime checks
 evidence refresh/deployment matching, trust/weight policy, and consensus remain open.
 Every dependency inspection keeps independent-domain count null and publication
 disabled. See [scope, evidence, and version selection](DEPENDENCIES.md).
+
+# Diagnostic source scoring
+
+Validated with the project-local Python 3.12 runtime.
+
+- 332 automated tests pass; the optional real Redis/PostgreSQL tests remain skipped
+  without their service URLs. Ruff lint and formatting checks pass.
+- Fixed-grid source scoring is exercised against synthetic established history,
+  cold start, repeated trades, isolated outliers, coordinated moves, correlated
+  majorities, outages, recovery, insufficient peers, and missing comparison history.
+  Tests explicitly demonstrate majority-agreement limits without enabling publication.
+- Receipt/event boundaries, fractional freshness/skew limits, old late arrivals,
+  pre-window anchors, ordering ties, per-source timing, and deterministic hashes
+  under reordered input and changed Decimal context are covered. Pure evaluation
+  and SQL-backed historical selection produce identical reports.
+- Comparison excludes the target, requires three other fresh providers by default,
+  and distinguishes unavailable data from unscored consistency. Missing comparison
+  history limits the composite score; repeated observations do not mature cold start.
+- Report/policy hashes, pinned registry versions, exact retained input evidence,
+  atomic rejection of missing evidence, concurrent idempotent saves, reopened
+  connections, storage corruption detection, CLI policy validation, and read-only
+  dataset-scoped API retrieval are covered.
+- Migration 0006 to 0007 preserves observations and dependency registries; earlier
+  upgrade paths and schema/model agreement still pass. The PostgreSQL contract now
+  includes scoring selection and persistence but has not been run locally.
+- The frozen historical report's existing source/capture checksums and reproduced
+  rounds continue to pass. No statistical policy or historical result was retuned.
+
+These are uncalibrated diagnostic quality scores. Real service integration,
+held-out six-provider calibration, independent upstream evidence, deployment
+matching, quarantine/recovery, and dependency-aware weighting remain open. The
+scoring API does not supply consensus confidence, and the feed remains unavailable.
+See [scoring formulas, cold-start rules, and evidence](SOURCE_SCORING.md).

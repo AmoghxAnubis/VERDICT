@@ -134,8 +134,8 @@ was deployed or known at the historical cutoff. Deployment matching and evidence
 validity policy remain pending.
 
 Migration `0007` adds separate immutable scoring-round storage. Saving verifies
-report/policy hashes and requires the registry and exact selected input payloads
-to exist in the same dataset. Missing or changed evidence rolls back the insert.
+report/policy hashes and requires the registry to be retained and the exact selected
+input payloads to exist in the report's dataset. Missing or changed evidence rolls back the insert.
 Reopened reads validate hashes and storage metadata. Changed visible evidence,
 policy, or registry creates a different report ID; prior reports stay intact.
 Database administrators are outside application-level immutability guarantees.
