@@ -338,11 +338,13 @@ def load_capture(
     collected: dict[str, Observation] = {}
     dataset = f"replay:hist-{case.name}"
     delay = timedelta(milliseconds=suite.receipt_delay_ms)
+    payloads = []
     for page in data["pages"]:
         body = page["body"]
         if hashlib.sha256(body.encode()).hexdigest() != page["body_sha256"]:
             raise HistoryCaptureError("historical response checksum mismatch")
         payload = json.loads(body, parse_float=str)
+        payloads.append(payload)
         if source == "coinbase":
             rows = [
                 normalize_ticker(item, dataset=dataset, received_at=case.end, latency_ms=0)
@@ -383,4 +385,74 @@ def load_capture(
             if previous and not same_event_content(previous, row):
                 raise HistoryCaptureError("conflicting historical provider event")
             collected.setdefault(row.observation_id, row)
+    validate_progress(data["pages"], payloads, source, start, case.end)
     return sorted(collected.values(), key=lambda row: (row.timestamp, row.observation_id))
+
+
+def validate_progress(pages: list[dict], payloads: list, source: Exchange, start, end) -> None:
+    """Recheck range completion when reading archives, not only while capturing them."""
+    if source == "coinbase":
+        ranges = [
+            (page, body)
+            for page, body in zip(pages, payloads, strict=True)
+            if page["params"].get("limit") == 1000
+        ]
+        if not ranges or not ranges[0][1] or not ranges[-1][1]:
+            raise HistoryCaptureError("Coinbase archive lacks its historical range")
+        if datetime.fromisoformat(ranges[0][1][0]["time"]) < end:
+            raise HistoryCaptureError("Coinbase archive lacks its ending boundary")
+        if datetime.fromisoformat(ranges[-1][1][-1]["time"]) > start:
+            raise HistoryCaptureError("Coinbase archive lacks its starting boundary")
+        cursor = ranges[0][0]["params"]["after"]
+        for page, body in ranges:
+            ids = [item["trade_id"] for item in body]
+            if not ids or ids != list(range(int(cursor) - 1, int(cursor) - 1 - len(ids), -1)):
+                raise HistoryCaptureError("Coinbase archive contains missing or unordered IDs")
+            if page["params"]["after"] != cursor or page["cursor_after"] != str(ids[-1]):
+                raise HistoryCaptureError("Coinbase archive cursor chain is incomplete")
+            times = [datetime.fromisoformat(item["time"]) for item in body]
+            if any(left < right for left, right in pairwise(times)):
+                raise HistoryCaptureError("Coinbase archive timestamps are not ordered")
+            cursor = str(ids[-1])
+    elif source == "kraken":
+        cursor = str(int(start.timestamp()) * 1_000_000_000)
+        previous = start
+        for page, body in zip(pages, payloads, strict=True):
+            if body.get("error") != [] or set(body.get("result", {})) != {"XETHZUSD", "last"}:
+                raise HistoryCaptureError("Kraken archive contains a provider error or wrong pair")
+            if page["params"] != {"pair": "ETHUSD", "since": cursor, "count": 1000}:
+                raise HistoryCaptureError("Kraken archive cursor chain is incomplete")
+            times = [epoch_seconds(item[2]) for item in body["result"]["XETHZUSD"]]
+            if (
+                not times
+                or times[0] < previous
+                or any(left > right for left, right in pairwise(times))
+            ):
+                raise HistoryCaptureError("Kraken archive timestamps are not ordered")
+            previous, cursor = times[-1], body["result"]["last"]
+        if previous < end:
+            raise HistoryCaptureError("Kraken archive lacks its ending boundary")
+    else:
+        expected = {
+            "symbol": "ETHUSD",
+            "startTime": int(start.timestamp() * 1000),
+            "endTime": int(end.timestamp() * 1000) - 1,
+            "limit": 1000,
+        }
+        previous_id, previous_time = -1, int(start.timestamp() * 1000)
+        for index, (page, body) in enumerate(zip(pages, payloads, strict=True)):
+            if page["params"] != expected or not isinstance(body, list):
+                raise HistoryCaptureError("Binance.US archive cursor chain is incomplete")
+            for item in body:
+                if (
+                    type(item.get("a")) is not int
+                    or type(item.get("T")) is not int
+                    or item["a"] <= previous_id
+                    or item["T"] < previous_time
+                ):
+                    raise HistoryCaptureError("Binance.US archive identities/times are not ordered")
+                previous_id, previous_time = item["a"], item["T"]
+            complete = len(body) < 1000 or previous_time >= int(end.timestamp() * 1000)
+            if complete != (index == len(pages) - 1):
+                raise HistoryCaptureError("Binance.US archive range is incomplete")
+            expected = {"symbol": "ETHUSD", "fromId": previous_id + 1, "limit": 1000}
