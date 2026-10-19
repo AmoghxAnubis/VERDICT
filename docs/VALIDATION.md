@@ -144,3 +144,43 @@ and failover have not been verified here. Redis tests use an emulator locally.
 Coinbase WebSocket ingestion retains direct checkpoint writes; only polling uses
 the optional queue. See [queue operation and limits](REDIS_INGESTION.md).
 Held-out historical calibration remains the next open Batch 2 implementation task.
+
+# Historical exchange evaluation
+
+Validated on 2026-10-19 with the project-local Python 3.12 runtime.
+
+- 270 automated tests pass; the optional real Redis/PostgreSQL service tests remain
+  skipped without their URLs. Ruff lint and formatting checks pass.
+- Actual public Coinbase, Kraken, and Binance.US requests retained twelve
+  compressed captures, containing 21,000 normalized records across four disjoint
+  historical windows and their warmup histories. The suite and policy were frozen
+  before full collection and evaluation; no detection/freshness threshold was tuned.
+- The offline CLI produced 1,440 diagnostic rounds with baseline and five paired
+  intervention runs. It opens neither a database nor a network connection.
+  Report, policy, suite, source-code, and capture checksums are retained. Eight real
+  first/last baseline rounds reproduce from the archives in automated checks;
+  synthetic suite evaluations repeat identically under a different Decimal context.
+- Tests cover literal decimal/epoch retention, original provider payloads, assumed
+  receipt times, temporal split/warmup separation, cutoff filtering of late inputs,
+  range completion, corrupt/truncated archives, cursor stalls, same-millisecond
+  aggregate pagination, retries/request budgets, and resume without overwriting.
+- March/April held-out baseline availability is 49/60 and 52/60 rounds (81.7% and
+  86.7%). All 14 eligible +35% Coinbase injection opportunities are excluded; zero
+  natural extreme-deviation exclusions are observed among eligible comparisons.
+  These are small-sample conditional measurements, not labelled accuracy estimates.
+- January and August return no Binance.US ETHUSD records, produce no three-source
+  baseline, and leave attack metrics unscored. August's roughly 3.3% decline and
+  5% intrawindow range therefore do not establish stress-period detection quality.
+- The coordinated +10% step causes five additional source exclusions across the
+  March/April samples. Correlated +35% shifts move the diagnostic median by up to
+  3,500 basis points. These results record current agreement/availability limits.
+- Strict CLI mode writes the reviewable report and exits unsuccessfully when any
+  held-out target is unmet or unscored. The retained run reports
+  `heldout_targets_met=false`, `six_provider_validation_complete=false`, and
+  `publication_ready=false`.
+
+The January window cannot calibrate a three-source policy. Historical first-receipt
+times are unavailable and explicitly assumed at event time plus 250 milliseconds;
+oracle/DEX history and longer independently labelled regimes remain missing.
+Historical validation remains open, and the live feed stays unavailable. See
+[methods, detailed results, and reproduction commands](HISTORICAL_VALIDATION.md).
