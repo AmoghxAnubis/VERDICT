@@ -58,7 +58,7 @@ async def publish_attempt(
 
 
 async def run_queued_ingestion(
-    store: ObservationStore, settings: Settings, *, source: str = "all", once: bool = False
+    store: ObservationStore | None, settings: Settings, *, source: str = "all", once: bool = False
 ):
     from verdict.ingestion import ingest_all, ingest_source
 
@@ -76,7 +76,11 @@ async def run_queued_ingestion(
 
 class QueueConsumer:
     def __init__(
-        self, client: Redis, store: ObservationStore, settings: Settings, consumer: str | None = None
+        self,
+        client: Redis,
+        store: ObservationStore,
+        settings: Settings,
+        consumer: str | None = None,
     ):
         self.client = client
         self.store = store
@@ -125,7 +129,9 @@ class QueueConsumer:
         self.claim_cursor = claimed[0]
         if len(claimed) > 2 and claimed[2]:
             logger.critical("queue_pending_payloads_lost count=%s", len(claimed[2]))
-            raise QueueDataLoss("pending Redis payloads were removed; evidence recovery is required")
+            raise QueueDataLoss(
+                "pending Redis payloads were removed; evidence recovery is required"
+            )
         counts: dict[str, int] = {}
 
         async def process(entries):

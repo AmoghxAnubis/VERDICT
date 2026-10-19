@@ -30,10 +30,18 @@ def main() -> None:
     ingest.add_argument("--source", choices=["all", *SOURCES], default="all")
     ingest.add_argument("--once", action="store_true")
     ingest.add_argument(
+        "--transport", choices=["direct", "redis"], help="Override ingestion transport"
+    )
+    ingest.add_argument(
         "--coinbase-stream",
         action="store_true",
         help="Stream Coinbase matches with REST gap recovery",
     )
+    consume = commands.add_parser("consume", help="Persist queued polling attempts from Redis")
+    consume.add_argument(
+        "--once", action="store_true", help="Process one bounded recovery/new batch"
+    )
+    consume.add_argument("--consumer", help="Unique worker name (generated if omitted)")
     replay_parser = commands.add_parser("replay", help="Replay a fixture into isolated storage")
     replay_parser.add_argument("scenario", type=Path)
     analysis = commands.add_parser("analyze", help="Persist an explainable statistical round")
@@ -49,6 +57,22 @@ def main() -> None:
     settings = get_settings()
     if args.command == "ingest" and args.coinbase_stream:
         settings = settings.model_copy(update={"coinbase_stream_enabled": True})
+    if args.command == "ingest" and args.transport:
+        settings = settings.model_copy(update={"ingestion_transport": args.transport})
+    if (
+        args.command == "ingest"
+        and settings.ingestion_transport == "redis"
+        and settings.coinbase_stream_enabled
+        and not args.once
+        and args.source in ("all", "coinbase")
+    ):
+        parser.error("Redis transport supports polling; disable Coinbase streaming or use direct")
+    if (
+        args.command == "consume"
+        and args.consumer is not None
+        and not 1 <= len(args.consumer) <= 128
+    ):
+        parser.error("--consumer must contain 1..128 characters")
     logging.basicConfig(level=settings.log_level, format="%(asctime)s %(levelname)s %(message)s")
 
     if args.command == "serve":
@@ -57,12 +81,25 @@ def main() -> None:
     if args.command == "db":
         command.upgrade(Config("alembic.ini"), "head")
         return
-    engine = build_engine(settings.database_url)
+    queued_producer = args.command == "ingest" and settings.ingestion_transport == "redis"
+    engine = None if queued_producer else build_engine(settings.database_url)
     try:
-        store = ObservationStore(engine)
-        store.check_ready()
+        store = ObservationStore(engine) if engine is not None else None
+        if store is not None:
+            store.check_ready()
         if args.command == "ingest":
-            if args.source == "all":
+            if queued_producer:
+                from verdict.queue import run_queued_ingestion
+
+                results = asyncio.run(
+                    run_queued_ingestion(store, settings, source=args.source, once=args.once)
+                )
+                if args.once:
+                    print(json.dumps(results, indent=2))
+                    entries = results if isinstance(results, list) else [results]
+                    if any(result["status"] == "error" for result in entries):
+                        raise SystemExit(1)
+            elif args.source == "all":
                 results = asyncio.run(ingest_all(store, settings, once=args.once))
                 if args.once:
                     print(json.dumps(results, indent=2))
@@ -72,6 +109,16 @@ def main() -> None:
                 result = asyncio.run(ingest_source(args.source, store, settings, once=args.once))
                 if args.once:
                     print(json.dumps(result, indent=2))
+        elif args.command == "consume":
+            from verdict.queue import consume_queue
+
+            counts = asyncio.run(
+                consume_queue(store, settings, consumer=args.consumer, once=args.once)
+            )
+            if args.once:
+                print(json.dumps(counts, indent=2))
+                if counts.get("rejected"):
+                    raise SystemExit(1)
         elif args.command == "replay":
             print(json.dumps(replay(args.scenario, store), indent=2))
         elif args.command == "analyze":
@@ -94,7 +141,8 @@ def main() -> None:
     except KeyboardInterrupt:
         logging.getLogger(__name__).info("ingestion_stopped")
     finally:
-        engine.dispose()
+        if engine is not None:
+            engine.dispose()
 
 
 if __name__ == "__main__":

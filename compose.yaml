@@ -23,6 +23,40 @@ services:
     depends_on:
       db:
         condition: service_healthy
+  redis:
+    image: redis:7.4-alpine
+    profiles: [queue]
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "always", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - verdict-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  collector:
+    build: .
+    profiles: [queue]
+    command: ["verdict", "ingest", "--transport", "redis"]
+    environment:
+      VERDICT_REDIS_URL: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+  consumer:
+    build: .
+    profiles: [queue]
+    command: ["verdict", "consume"]
+    environment:
+      VERDICT_DATABASE_URL: postgresql+psycopg://verdict:verdict@db:5432/verdict
+      VERDICT_REDIS_URL: redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
   worker:
     build: .
     command: ["verdict", "ingest"]
@@ -33,3 +67,4 @@ services:
         condition: service_healthy
 volumes:
   verdict-db:
+  verdict-redis:

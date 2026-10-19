@@ -45,7 +45,9 @@ async def ingest_source(
         raise ValueError("Redis ingestion requires run_queued_ingestion")
     if source == "coinbase" and settings.coinbase_stream_enabled and not once:
         if publisher is not None:
-            raise ValueError("Redis transport currently supports polling; disable Coinbase streaming")
+            raise ValueError(
+                "Redis transport currently supports polling; disable Coinbase streaming"
+            )
         from verdict.streaming import ingest_coinbase_stream
 
         await ingest_coinbase_stream(store, settings, sleep=sleep)
@@ -79,7 +81,9 @@ async def ingest_source(
                     )
                 else:
                     await publisher(
-                        QueuedAttempt(source=source, error_type=type(error).__name__, http_status=status)
+                        QueuedAttempt(
+                            source=source, error_type=type(error).__name__, http_status=status
+                        )
                     )
                 if once:
                     raise
@@ -131,7 +135,10 @@ async def ingest_all(
         )
         return []
     results = await asyncio.gather(
-        *(ingest_source(source, store, settings, once=True, publisher=publisher) for source in SOURCES),
+        *(
+            ingest_source(source, store, settings, once=True, publisher=publisher)
+            for source in SOURCES
+        ),
         return_exceptions=True,
     )
     return [
