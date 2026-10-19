@@ -184,3 +184,33 @@ times are unavailable and explicitly assumed at event time plus 250 milliseconds
 oracle/DEX history and longer independently labelled regimes remain missing.
 Historical validation remains open, and the live feed stays unavailable. See
 [methods, detailed results, and reproduction commands](HISTORICAL_VALIDATION.md).
+
+# Dependency registry foundation
+
+Validated on 2026-10-19 with the project-local Python 3.12 runtime.
+
+- 301 automated tests pass; the optional real Redis/PostgreSQL service tests remain
+  skipped without their URLs. Ruff lint and formatting checks pass.
+- The bundled six-provider review retains eight connector implementation snapshots
+  and a limitations note. Tests compare the retained code to the reviewed files and
+  check every oracle/DEX provenance dependency against the graph's transitive closure.
+- Transitive inspection exposes shared Chainlink protocol, Ethereum, RPC configuration,
+  and collector dependencies, while preserving unknown memberships and operator details.
+  Selected-source ordering and UTC-equivalent timestamps produce identical hashes.
+- Invalid/cyclic graphs, broken references, duplicate identities, changed evidence,
+  future evidence timestamps, and unvalidated model copies are rejected. Immutable
+  version conflicts, concurrent idempotent registration, reopened storage, old-version
+  retrieval after a new review, and corruption detection are exercised.
+- Migration 0005 to 0006 preserves observations, diagnostic rounds, and queue receipts.
+  Fresh-schema/model agreement and prior migration paths pass. CLI registration and
+  inspection match read-only API results; missing/invalid IDs and source sets fail
+  explicitly. The optional PostgreSQL contract includes registry storage and conflicts.
+- The package build includes the retained registry resource. Its packaged document
+  validates to the same hash as the source checkout; the build also produces an sdist.
+
+This review establishes implementation dependencies, not upstream independence or
+deployment authenticity. It does not modify the frozen historical evaluation or
+statistical policy. Historical calibration, real Redis/PostgreSQL runtime checks,
+evidence refresh/deployment matching, trust/weight policy, and consensus remain open.
+Every dependency inspection keeps independent-domain count null and publication
+disabled. See [scope, evidence, and version selection](DEPENDENCIES.md).
