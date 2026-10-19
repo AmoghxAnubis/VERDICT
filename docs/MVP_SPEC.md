@@ -80,6 +80,11 @@ An outlier detector cannot guarantee resistance to a coordinated majority. Share
 upstream domains must not gain voting weight from multiple downstream wrappers.
 Unknown relationships remain unknown; price correlation alone does not prove lineage.
 
+The [versioned dependency registry](DEPENDENCIES.md) now retains implementation
+evidence and explicit unknowns, with deterministic transitive inspection and
+immutable version storage. It does not yet establish independent domains, enforce
+dependency-aware weights, or bind the statistical round schema to a registry.
+
 ## Result and failure contract
 
 Until consensus is implemented, `/v1/feed/ETH-USD` returns HTTP 503 with

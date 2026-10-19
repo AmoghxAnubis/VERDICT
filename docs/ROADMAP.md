@@ -52,7 +52,7 @@ See [methods and measured results](HISTORICAL_VALIDATION.md).
 
 ## Batch 3: dependencies, trust, consensus, confidence
 
-- [ ] Registry of known/unknown upstream dependencies with evidence and versions.
+- [x] Registry of known/unknown upstream dependencies with evidence and versions.
 - [ ] Historical consistency, uptime/freshness scoring, cold-start rules.
 - [ ] Quarantine/recovery hysteresis and dependency-aware weight limits.
 - [ ] Weighted median with deterministic edge-case handling.
@@ -61,6 +61,14 @@ See [methods and measured results](HISTORICAL_VALIDATION.md).
 - [ ] Benchmarks covering isolated attacks, market moves, and correlated failures.
 
 Gate: bad or insufficient evidence cannot produce a falsely healthy result.
+
+The first dependency review retains the six adapters' implementation evidence,
+explicit unknown upstreams, and typed transitive relationships. Immutable registry
+versions, CLI registration/inspection, and read-only API access are implemented.
+Shared Chainlink protocol, Ethereum/RPC, and collector dependencies are visible;
+verified upstream independence, deployment matching, and dependency-aware weights
+remain pending. Inspections always leave independent-domain count unknown and
+publication disabled. See [registry scope and operation](DEPENDENCIES.md).
 
 ## Batch 4: dashboard and live updates
 

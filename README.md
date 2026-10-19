@@ -7,7 +7,8 @@ The backend provides a FastAPI service, decimal-safe observation schema, version
 SQLite/PostgreSQL storage, three exchange adapters, Chainlink/Pyth oracle reads,
 a Uniswap v3 pool adapter, optional Redis polling ingestion, persisted connector
 health, deterministic replay, and
-explainable statistical rounds with retained source provenance.
+explainable statistical rounds with retained source provenance, and a versioned
+dependency registry with retained evidence and explicit unknown upstreams.
 Consensus, trust scores, the dashboard, and contracts are
 tracked in [the roadmap](docs/ROADMAP.md). The feed endpoint returns an explicit
 unavailable response until consensus exists.
@@ -104,6 +105,9 @@ for evidence boundaries and operating limits.
 | `GET /v1/analysis/ETH-USD` | Read-only statistical diagnostics for a fixed cutoff |
 | `GET /v1/rounds` | Statistical rounds explicitly saved by the CLI |
 | `GET /v1/rounds/{round_id}` | One saved round, scoped to the selected dataset |
+| `GET /v1/dependencies` | Retained dependency registry versions |
+| `GET /v1/dependencies/{registry_id}` | Pinned graph and retained evidence |
+| `GET /v1/dependencies/{registry_id}/inspection` | Transitive dependencies, overlaps, and unknowns |
 | `GET /v1/feed/ETH-USD` | HTTP 503 with null value/confidence until consensus is built |
 
 Observation queries support `asset=ETH-USD`,
@@ -167,6 +171,21 @@ GET analysis does not persist a round. Reports contain policy/input IDs and a
 deterministic round ID. All diagnostic reports have `publication_ready=false`.
 See [the statistical policy](docs/STATISTICAL_ENGINE.md) for formulas, assumptions,
 and fixture acceptance criteria.
+
+## Dependency evidence
+
+```powershell
+uv run --no-sync verdict db upgrade
+uv run --no-sync verdict dependencies register
+# Use the registry_id returned by registration:
+uv run --no-sync verdict dependencies inspect <registry_id> --source chainlink --source uniswap_v3
+```
+
+The bundled review records relationships supported by the connector implementation,
+including Uniswap's Chainlink USD conversion and shared Ethereum/RPC dependencies.
+Unknown upstream memberships remain explicit. Inspections are pinned to a retained
+version and do not establish source independence or assign voting weights. See
+[registry evidence, API access, and limits](docs/DEPENDENCIES.md).
 
 ## Historical evaluation
 
