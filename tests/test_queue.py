@@ -427,6 +427,73 @@ def test_group_errors_other_than_busygroup_are_not_ignored(store):
         asyncio.run(QueueConsumer(client, store, settings()).ensure_group())
 
 
+def test_recent_pending_messages_are_not_stolen(store, market_observation):
+    async def run():
+        config = settings()
+        async with fakeredis.aioredis.FakeRedis(decode_responses=True) as client:
+            worker = QueueConsumer(client, store, config)
+            await worker.ensure_group()
+            await publish_attempt(client, config, attempt(market_observation(dataset="live")))
+            await client.xreadgroup(config.redis_group, "active", {config.redis_stream: ">"})
+            assert await worker.consume_once() == {}
+            assert store.list() == []
+            pending = await client.xpending_range(
+                config.redis_stream, config.redis_group, "-", "+", 1
+            )
+            assert pending[0]["consumer"] == "active"
+
+    asyncio.run(run())
+
+
+def test_concurrent_database_consumers_only_apply_an_attempt_once(store, market_observation):
+    async def run():
+        queued = attempt(market_observation(dataset="live"))
+        outcomes = await asyncio.gather(
+            *(asyncio.to_thread(store.consume_attempt, queued) for _ in range(4))
+        )
+        assert sorted(outcomes) == ["duplicate_attempt"] * 3 + ["inserted"]
+        assert receipts(store) == 1
+        assert store.health()["coinbase"]["attempts"] == 1
+
+    asyncio.run(run())
+
+
+def test_recovery_of_error_attempts_does_not_recount_failures(store):
+    async def run():
+        config = settings()
+        async with fakeredis.aioredis.FakeRedis(decode_responses=True) as client:
+            worker = QueueConsumer(client, store, config)
+            await worker.ensure_group()
+            queued = QueuedAttempt(source="coinbase", error_type="HTTPStatusError", http_status=429)
+            await leave_pending(client, config, queued)
+            store.consume_attempt(queued)
+            before = store.health()
+            assert await worker.consume_once() == {"duplicate_attempt": 1}
+            assert store.health() == before
+            assert before["coinbase"]["errors"] == 1
+
+    asyncio.run(run())
+
+
+def test_queued_ingestion_lifecycle_closes_redis_and_supports_configured_transport(
+    market_observation, monkeypatch
+):
+    client = fakeredis.aioredis.FakeRedis(decode_responses=True)
+    monkeypatch.setattr("verdict.queue.redis_client", lambda _: client)
+    monkeypatch.setattr(
+        CONNECTORS["coinbase"], "fetch", AsyncMock(return_value=market_observation(dataset="live"))
+    )
+    close = AsyncMock(wraps=client.aclose)
+    monkeypatch.setattr(client, "aclose", close)
+    result = asyncio.run(
+        run_queued_ingestion(
+            None, settings(ingestion_transport="redis"), source="coinbase", once=True
+        )
+    )
+    assert result == {"source": "coinbase", "status": "queued"}
+    close.assert_awaited_once()
+
+
 @pytest.mark.parametrize("source", ["coinbase", "all"])
 def test_stream_queue_combination_is_rejected_before_connecting(store, source):
     with pytest.raises(ValueError, match="polling"):

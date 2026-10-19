@@ -186,8 +186,22 @@ docker compose up -d api worker
 
 Compose credentials are local development defaults. The database port and API bind
 to localhost. Data persists in a named volume. API and worker remain separate
-processes; both use the same migrated database. Redis is deferred until the
-ingestion queue is implemented; this slice writes directly to storage.
+processes; both use the same migrated database. Direct ingestion writes to storage.
+An optional Redis queue separates polling collectors from database consumers:
+
+```powershell
+docker compose --profile queue up -d redis
+uv run --no-sync verdict db upgrade
+uv run --no-sync verdict consume
+# In another terminal:
+uv run --no-sync verdict ingest --transport redis
+```
+
+All six polling adapters support this transport. Producers report queued attempts;
+consumers commit evidence and health before acknowledging Redis, with durable
+deduplication and pending-message recovery. Coinbase WebSocket ingestion continues
+to use its direct checkpoint path. See [queue operation and limits](docs/REDIS_INGESTION.md)
+for configuration, container startup, rejection handling, and retention.
 
 ## Validation
 

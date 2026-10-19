@@ -6,6 +6,7 @@ from alembic import command
 from alembic.config import Config
 
 from verdict.config import get_settings
+from verdict.queue_models import QueuedAttempt
 from verdict.statistics import analyze
 from verdict.storage import ObservationStore, build_engine
 
@@ -44,6 +45,11 @@ def test_postgres_migration_and_storage_contract(observation, monkeypatch):
         assert store.record_attempt("kraken", observation=live)
         assert not store.record_attempt("kraken", observation=live)
         assert store.health()["kraken"]["consecutive_failures"] == 0
+        queued = QueuedAttempt(source="kraken", observation=live)
+        assert store.consume_attempt(queued) == "duplicate_observation"
+        health = store.health()
+        assert store.consume_attempt(queued) == "duplicate_attempt"
+        assert store.health() == health
         store.set_coinbase_stream_status("recovering")
         previous = store.stream_states()["coinbase"]["last_trade_id"]
         trade_id = previous + 1 if previous is not None else 100

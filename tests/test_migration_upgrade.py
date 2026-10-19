@@ -9,6 +9,35 @@ from verdict.statistics import analyze
 from verdict.storage import ObservationStore, build_engine
 
 
+def test_queue_upgrade_preserves_checkpoint_evidence_and_health(tmp_path, monkeypatch, observation):
+    from verdict.queue_models import QueuedAttempt
+
+    database_url = f"sqlite:///{(tmp_path / 'queue-upgrade.db').as_posix()}"
+    monkeypatch.setenv("VERDICT_DATABASE_URL", database_url)
+    get_settings.cache_clear()
+    engine = build_engine(database_url)
+    try:
+        config = Config("alembic.ini")
+        command.upgrade(config, "0004")
+        store = ObservationStore(engine)
+        store.set_coinbase_stream_status("recovering")
+        live = observation.model_copy(update={"dataset": "live", "provider_event_id": "100"})
+        store.record_coinbase_stream_batch([live], expected_trade_id=None)
+        states, health = store.stream_states(), store.health()
+        command.upgrade(config, "head")
+        command.check(config)
+        store.check_ready()
+        assert store.stream_states() == states
+        assert store.health() == health
+        assert store.list() == [live]
+        queued = QueuedAttempt(source="coinbase", observation=live)
+        assert store.consume_attempt(queued) == "duplicate_observation"
+        assert store.consume_attempt(queued) == "duplicate_attempt"
+    finally:
+        engine.dispose()
+        get_settings.cache_clear()
+
+
 def test_upgrade_backfills_receipt_time_without_changing_existing_evidence(
     tmp_path, monkeypatch, observation
 ):

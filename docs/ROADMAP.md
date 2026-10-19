@@ -18,7 +18,7 @@
 - [x] Add Chainlink/Pyth reads and one well-defined Uniswap pool adapter.
 - [x] Preserve chain, block/hash/finality, pair conversion, and lineage metadata.
 - [x] Add persisted connector health, received/error counts, and consecutive failures.
-- [ ] Add Redis Streams with idempotent consumers and pending-message recovery.
+- [x] Add Redis Streams with idempotent consumers and pending-message recovery.
 - [x] Define synchronized round cutoffs and observation windows, including receipt-time filtering.
 - [x] Implement median, MAD/zero-MAD handling, coverage-aware TWAP, RMS returns, and velocity.
 - [x] Extend replay to multi-provider synthetic/adversarial cases and immutable diagnostic rounds.
@@ -28,7 +28,9 @@ Gate: comparable observations from six providers; explainable anomaly decisions.
 
 Six adapters, block-pinned oracle/DEX reads, retained provenance, and six-provider
 synthetic replay are implemented. Live six-provider availability and historical
-calibration remain unverified; Redis recovery remains open. Coinbase streaming now
+calibration remain unverified. Optional Redis polling ingestion now includes SQL
+receipt deduplication, commit-before-acknowledgement, and stale pending recovery;
+real Redis/PostgreSQL runtime validation remains pending locally. Coinbase streaming now
 has bounded REST recovery, durable checkpoints, and heartbeat/reconnect handling;
 its public WebSocket/REST bootstrap was exercised live. Binance.US
 is a distinct USD venue, not an implicit conversion of Binance ETH/USDT. A live
