@@ -1,0 +1,29 @@
+{
+  "version": "historical-v1",
+  "description": "Frozen statistics-v2 exchange-trade evaluation; no policy tuning on holdouts.",
+  "receipt_delay_ms": 250,
+  "step_seconds": 5,
+  "policy": {
+    "version": "statistics-v2",
+    "sources": ["coinbase", "kraken", "binance_us", "chainlink", "pyth", "uniswap_v3"],
+    "history_seconds": 300,
+    "freshness_seconds": 30,
+    "max_future_skew_seconds": 5,
+    "minimum_sources": 3,
+    "mad_multiplier": 6,
+    "minimum_deviation_bps": 100,
+    "velocity_signal_bps_per_second": 200,
+    "max_observations": 100000
+  },
+  "targets": {
+    "minimum_baseline_availability": "0.80",
+    "maximum_unlabelled_exclusion_fraction": "0.05",
+    "minimum_spike_detection_fraction": "0.95"
+  },
+  "cases": [
+    {"name": "jan-2023-calibration", "split": "calibration", "regime": "ordinary_candidate", "start": "2023-01-08T12:00:00Z", "end": "2023-01-08T12:05:00Z"},
+    {"name": "mar-2023-holdout", "split": "holdout", "regime": "stress_candidate", "start": "2023-03-12T08:00:00Z", "end": "2023-03-12T08:05:00Z"},
+    {"name": "apr-2023-holdout", "split": "holdout", "regime": "ordinary_candidate", "start": "2023-04-16T12:00:00Z", "end": "2023-04-16T12:05:00Z"},
+    {"name": "aug-2024-holdout", "split": "holdout", "regime": "stress_and_usd_availability_candidate", "start": "2024-08-05T06:20:00Z", "end": "2024-08-05T06:25:00Z"}
+  ]
+}
