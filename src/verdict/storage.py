@@ -23,6 +23,7 @@ from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
+from verdict.dependencies import DependencyRegistry, canonical_json
 from verdict.event_identity import same_event_content
 from verdict.models import Observation, Source
 from verdict.queue_models import QueuedAttempt
@@ -106,6 +107,15 @@ class IngestionReceiptRow(Base):
     processed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class DependencyRegistryRow(Base):
+    __tablename__ = "dependency_registries"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    version: Mapped[str] = mapped_column(String(96), nullable=False, unique=True)
+    reviewed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    payload: Mapped[str] = mapped_column(Text)
+
+
 class AttemptConflict(ValueError):
     """An ingestion attempt identity was reused with different content."""
 
@@ -148,6 +158,68 @@ class ObservationStore:
             session.execute(text("SELECT id FROM analysis_rounds LIMIT 1"))
             session.execute(text("SELECT last_trade_id FROM stream_checkpoints LIMIT 1"))
             session.execute(text("SELECT id FROM ingestion_receipts LIMIT 1"))
+            session.execute(text("SELECT id FROM dependency_registries LIMIT 1"))
+
+    def save_dependency_registry(self, registry: DependencyRegistry) -> bool:
+        registry = DependencyRegistry.model_validate(registry)
+        payload = canonical_json(registry.model_dump(mode="json"))
+        with self.session() as session, session.begin():
+            try:
+                with session.begin_nested():
+                    session.add(
+                        DependencyRegistryRow(
+                            id=registry.registry_id,
+                            version=registry.version,
+                            reviewed_at=registry.reviewed_at,
+                            payload=payload,
+                        )
+                    )
+                    session.flush()
+            except IntegrityError:
+                existing = session.scalar(
+                    select(DependencyRegistryRow.payload).where(
+                        DependencyRegistryRow.id == registry.registry_id,
+                        DependencyRegistryRow.version == registry.version,
+                    )
+                )
+                if existing != payload:
+                    raise ValueError("immutable dependency registry version conflict") from None
+                return False
+        return True
+
+    def get_dependency_registry(self, registry_id: str) -> DependencyRegistry | None:
+        with self.session() as session:
+            payload = session.scalar(
+                select(DependencyRegistryRow.payload).where(DependencyRegistryRow.id == registry_id)
+            )
+        if payload is None:
+            return None
+        registry = DependencyRegistry.model_validate_json(payload)
+        if registry.registry_id != registry_id:
+            raise ValueError("stored dependency registry checksum mismatch")
+        return registry
+
+    def dependency_registries(self, *, limit: int = 100) -> list[dict]:
+        with self.session() as session:
+            rows = session.execute(
+                select(
+                    DependencyRegistryRow.id,
+                    DependencyRegistryRow.version,
+                    DependencyRegistryRow.reviewed_at,
+                )
+                .order_by(DependencyRegistryRow.reviewed_at.desc(), DependencyRegistryRow.id.desc())
+                .limit(limit)
+            )
+            return [
+                {
+                    "registry_id": row.id,
+                    "version": row.version,
+                    "reviewed_at": row.reviewed_at.replace(tzinfo=UTC)
+                    if row.reviewed_at.tzinfo is None
+                    else row.reviewed_at.astimezone(UTC),
+                }
+                for row in rows
+            ]
 
     @staticmethod
     def _insert(session: Session, observation: Observation) -> bool:
