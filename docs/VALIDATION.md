@@ -252,3 +252,37 @@ held-out six-provider calibration, independent upstream evidence, deployment
 matching, quarantine/recovery, and dependency-aware weighting remain open. The
 scoring API does not supply consensus confidence, and the feed remains unavailable.
 See [scoring formulas, cold-start rules, and evidence](SOURCE_SCORING.md).
+
+# Quarantine and dependency-constrained weights
+
+Validated on 2026-10-20 with the project-local Python 3.12 runtime.
+
+- 364 automated tests pass; real Redis and PostgreSQL tests remain skipped without
+  their service URLs. Ruff lint and formatting checks pass.
+- Source states cover cold-start probation, immediate quarantine on unavailable,
+  outlier, or unscored evidence, hysteresis, recovery resets, distinct-observation
+  and elapsed-time gates, gradual increases, and immediate quality decreases.
+  Missing weighting rounds quarantine all sources instead of skipping recovery.
+- Deterministic integer allocation checks cover overlapping economic/source/unknown
+  caps, final normalized shares, floor rounding, no redistribution of suppressed
+  mass, and infeasible allocations. All six bundled sources have unresolved
+  upstreams, so their shared unknown cap correctly leaves zero allocatable weight.
+- SQLite persistence covers reopened reads, retained policy/registry/score hashes,
+  concurrent duplicate and competing successor applications, transactional rollback,
+  stale cutoffs, and immutable dataset/policy selection. Missing, reset, older, or
+  dangling dataset heads are rejected before they can fork history. Dataset-scoped
+  API reads and invalid requests are exercised; publication remains disabled.
+- Migration 0007 to 0008 preserves scoring evidence and matches the SQLAlchemy
+  schema. Earlier upgrade paths pass. The optional PostgreSQL contract now includes
+  concurrent weighting duplicates and successor persistence; it was not run locally.
+- An actual subprocess CLI smoke run migrated an isolated SQLite database,
+  registered the dependency review, replayed the six-provider fixture, scored it,
+  and applied weighting twice with an identical report ID. All sources stayed in
+  probation with zero weight. A reopened API returned that report only in its
+  replay dataset, reported readiness, and kept the live feed at HTTP 503.
+
+These checks validate development state/weight rules, not calibrated consensus.
+Real Redis/PostgreSQL runtime, six-provider historical calibration, upstream
+independence, and deployment matching remain unverified. Weighted median,
+quality/confidence and availability gates, and publication remain subsequent work.
+See [weighting policy, recovery rules, and limits](WEIGHTING.md).

@@ -76,8 +76,7 @@ pin the dependency registry, policy, and selected evidence, with separate immuta
 storage and read-only history/detail endpoints. Three other fresh providers are
 required for each comparison; provider independence is not inferred. This is an
 uncalibrated quality indicator, not a voting weight or confidence probability.
-See
-[scoring policy and evidence](SOURCE_SCORING.md).
+See [scoring policy and evidence](SOURCE_SCORING.md).
 
 Persistent quarantine/recovery and conservative dependency-aware weights now pin
 each transition to retained scores, policies, registry evidence, and its previous
