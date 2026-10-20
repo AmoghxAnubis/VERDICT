@@ -121,7 +121,7 @@ Policies use strict bounded integers, require at least three providers/domains,
 and cannot disable the independence gate. Threshold variants create distinct
 assessment IDs without mutating prior reports or weighting histories.
 
-Migration `0010` adds separate immutable confidence-round storage. Saving requires
+Migration `0010` adds separate immutable confidence-round storage. Saving a new assessment requires
 the aggregation, score, weights, registry, and original selected observations to
 remain retained and valid. It reproduces the assessment and revalidates the full
 aggregation evidence, even if that aggregation was saved earlier. New evidence

@@ -325,3 +325,43 @@ Confidence and independent-domain availability gates remain pending. All candida
 reports retain null confidence/domain count and `publication_ready=false`.
 These checks do not establish calibrated accuracy or coordinated-attack resistance.
 See [aggregation algorithm, evidence, and limits](AGGREGATION.md).
+
+# Quality breakdown and availability gates
+
+Validated on 2026-10-20 with the project-local Python 3.12 runtime.
+
+- 445 automated tests pass, including 37 confidence checks. Real PostgreSQL and
+  Redis service tests remain skipped without their URLs. Ruff lint and formatting
+  checks pass.
+- Synthetic complete-graph history produces quality 9,700/10,000 with six weighted
+  providers and all measured gates passing except independent domains. The domain
+  observation stays unknown, and usable value/confidence remain null. A coordinated
+  price move can also score highly without bypassing this gate.
+- Exact weighted components, allocated-budget penalties, maximum-deviation
+  agreement, pooled unknown shares, economic/source concentration, and inclusive
+  integer gate thresholds are checked. Registry time boundaries retain microsecond
+  precision. Caller Decimal precision and rounding do not change report JSON.
+- Outliers remain visible with zero contributing weight. Outages return zero
+  quality and unknown concentration rather than apparently healthy zero exposure.
+  Policy validation rejects disabled domain/source minimums and override fields.
+  Forged quality, gate decisions, domain counts, and usable output are rejected.
+- SQLite tests cover concurrent idempotent saves, policy variants, reopened reads,
+  scoped history/detail APIs, corruption detection, and CLI policy loading. New
+  assessments require the retained aggregation, score, weights, registry, and exact
+  selected observations. Missing or changed evidence rolls back the insertion,
+  including original payloads changed after aggregation was saved.
+- Migration 0009 to 0010 preserves saved aggregation and matches the ORM schema.
+  Earlier migrations and all 44 aggregation checks continue to pass after sharing
+  evidence validation. The optional PostgreSQL contract now includes concurrent
+  confidence saves and dataset-scoped retrieval; it was not executed locally.
+- A subprocess CLI smoke run migrated isolated SQLite storage, retained six-provider
+  replay/scoring/weighting/aggregation, and applied confidence twice. Both runs
+  produced the same assessment ID, ten gates, zero quality, and null usable output.
+  Reopened API reads retained dataset isolation and kept the feed at HTTP 503.
+
+These are uncalibrated development assessments. Registry v1 has no independent-domain
+attestation contract, so that gate always fails as unknown, including when unknown
+nodes are removed from a synthetic graph. Independent-domain and deployment
+evidence, held-out six-provider calibration, full-pipeline adversarial benchmarks,
+and usable feed output remain open. Publication stays disabled.
+See [formulas, policy, and evidence limits](CONFIDENCE.md).
