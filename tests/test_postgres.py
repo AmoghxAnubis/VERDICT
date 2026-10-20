@@ -8,6 +8,7 @@ from alembic import command
 from alembic.config import Config
 
 from verdict.aggregation import build_aggregation_report
+from verdict.confidence import build_confidence_report
 from verdict.config import get_settings
 from verdict.dependencies import bundled_registry
 from verdict.queue_models import QueuedAttempt
@@ -86,6 +87,17 @@ def test_postgres_migration_and_storage_contract(observation, monkeypatch):
             candidate.report_id, dataset=scored.dataset
         ) == candidate.model_dump(mode="json")
         assert candidate.candidate_value is None and not candidate.publication_ready
+        confidence = build_confidence_report(
+            store, aggregation_report_id=candidate.report_id, dataset=scored.dataset
+        )
+        with ThreadPoolExecutor(max_workers=4) as workers:
+            results = list(workers.map(lambda _: store.save_confidence_round(confidence), range(4)))
+        assert results.count(True) == 1
+        assert store.get_confidence_round(confidence.report_id) is None
+        assert store.get_confidence_round(
+            confidence.report_id, dataset=scored.dataset
+        ) == confidence.model_dump(mode="json")
+        assert confidence.value is confidence.confidence is None
         report = analyze([isolated], dataset=isolated.dataset, cutoff=isolated.received_at)
         assert store.save_round(report)
         assert not store.save_round(report)

@@ -1,6 +1,6 @@
 """Uncalibrated quality breakdowns and fail-closed availability assessments."""
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from fractions import Fraction
 from typing import TYPE_CHECKING, Literal
 
@@ -205,7 +205,13 @@ class ConfidenceData(FrozenModel):
     publication_ready: Literal[False] = False
 
 
-def breakdown(contributions, exposures, policy, cutoff, reviewed_at) -> dict:
+def breakdown(
+    contributions: tuple[QualityContribution, ...],
+    exposures: tuple[EconomicExposure, ...],
+    policy: ConfidencePolicy,
+    cutoff: datetime,
+    reviewed_at: datetime,
+) -> dict:
     if tuple(item.source for item in contributions) != tuple(sorted(SOURCES)):
         raise ValueError("confidence contributions must cover every source in canonical order")
     positive = [item for item in contributions if item.weight_bps]

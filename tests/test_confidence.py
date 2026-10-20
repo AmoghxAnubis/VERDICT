@@ -388,7 +388,7 @@ def test_changed_original_observation_is_rechecked_after_aggregation(store, hist
     retained = history()
     report = retain(store, retained)
     with store.session() as session, session.begin():
-        row = session.get(ObservationRow, retained[1][0].observation_id)
+        row = session.get(ObservationRow, retained[2][-1].input_observation_ids[0])
         row.payload = row.payload.replace('"synthetic":"confidence"', '"synthetic":"changed"')
     with pytest.raises(ValueError, match="missing or changed"):
         store.save_confidence_round(report)
