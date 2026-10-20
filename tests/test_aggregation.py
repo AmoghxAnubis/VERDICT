@@ -308,7 +308,14 @@ def test_storage_reopens_and_does_not_follow_later_observations(store, evidence)
     report = persist(store, retained)
     assert store.save_aggregation_round(report)
     assert not store.save_aggregation_round(report)
-    _, rows, _, weights = retained
+    _, rows, scores, weights = retained
+    earlier = aggregate(scores[0], weights[0])
+    assert store.save_aggregation_round(earlier)
+    assert [item["report_id"] for item in store.aggregation_rounds(dataset=report.dataset)] == [
+        report.report_id,
+        earlier.report_id,
+    ]
+    assert len(store.aggregation_rounds(dataset=report.dataset, limit=1)) == 1
     later = rows[-1].model_copy(
         update={
             "provider_event_id": "after-aggregation",
@@ -377,6 +384,18 @@ def test_self_consistent_report_must_reproduce_from_retained_evidence(store, evi
     forged = AggregationReport.model_validate({**data, "report_id": checksum(data)})
     with pytest.raises(ValueError, match="does not reproduce"):
         store.save_aggregation_round(forged)
+    assert store.aggregation_rounds(dataset=report.dataset) == []
+
+
+def test_selected_value_must_match_original_observation_payload(store, evidence):
+    registry, rows, scores, weights = evidence()
+    ticks = scores[-1].model_dump(mode="json")["ticks"]
+    ticks[-1]["sources"][0]["value"] = "1000"
+    scores[-1] = resign(scores[-1], ticks=ticks)
+    weights[-1] = resign(weights[-1], scoring_report_id=scores[-1].report_id)
+    report = persist(store, (registry, rows, scores, weights))
+    with pytest.raises(ValueError, match="selected observation mismatch"):
+        store.save_aggregation_round(report)
     assert store.aggregation_rounds(dataset=report.dataset) == []
 
 

@@ -286,3 +286,42 @@ Real Redis/PostgreSQL runtime, six-provider historical calibration, upstream
 independence, and deployment matching remain unverified. Weighted median,
 quality/confidence and availability gates, and publication remain subsequent work.
 See [weighting policy, recovery rules, and limits](WEIGHTING.md).
+
+# Diagnostic weighted-median aggregation
+
+Validated on 2026-10-20 with the project-local Python 3.12 runtime.
+
+- 408 automated tests pass, including 44 aggregation checks. The real PostgreSQL
+  and Redis tests remain skipped without service URLs. Ruff lint and formatting
+  checks pass.
+- Median tests cover exact half-weight lower-price selection, unequal/odd weights,
+  repeated prices, zero weights, empty inputs, small and large decimal values,
+  input permutations, and changed Decimal precision/rounding. Invalid prices and
+  noninteger/negative/oversized weights are rejected.
+- Synthetic complete-dependency history exercises nonzero candidates through real
+  source scoring, recovery, weighting, SQLite persistence, CLI, and API. Current
+  outliers and stale sources retain their evidence and exclusions with zero weight.
+  Cold start, probation, missing history, and the bundled unknown pool produce no
+  candidate. No synthetic graph is treated as real independence evidence.
+- Inconsistent positive-weight inputs fail instead of being removed and rescaled.
+  Score/weight identity mismatches, invalid model copies, forged candidate values,
+  changed input checksums, and missing or changed retained evidence are rejected.
+  Even a self-consistent score/weight pair cannot substitute a different value for
+  the original observation payload during aggregation persistence.
+- Concurrent saves are idempotent; failed evidence validation rolls back inserts.
+  Reopened reads, immutable metadata/hash checks, dataset isolation, newest-first
+  history, aggregation of older rounds, and stability after later arrivals pass.
+- Migration 0008 to 0009 preserves weighting reports and the dataset head, with
+  schema/model agreement and readiness before/after migration. Earlier upgrade
+  paths also pass. The optional PostgreSQL contract includes concurrent aggregation
+  saves and scoped retrieval, but was not executed locally.
+- An actual subprocess CLI smoke run migrated an isolated SQLite database,
+  registered dependency evidence, replayed six providers, scored, weighted, and
+  aggregated twice. Both aggregation runs returned the same report ID, with null
+  candidate and unavailable status. A reopened API returned the retained report
+  only in its replay dataset and kept the live feed at HTTP 503.
+
+Confidence and independent-domain availability gates remain pending. All candidate
+reports retain null confidence/domain count and `publication_ready=false`.
+These checks do not establish calibrated accuracy or coordinated-attack resistance.
+See [aggregation algorithm, evidence, and limits](AGGREGATION.md).
