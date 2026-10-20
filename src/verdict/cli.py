@@ -11,6 +11,7 @@ from alembic.config import Config
 from pydantic import TypeAdapter
 
 from verdict.aggregation import build_aggregation_report
+from verdict.confidence import ConfidencePolicy, build_confidence_report
 from verdict.config import get_settings
 from verdict.dependencies import DependencyRegistry, bundled_registry, inspect_dependencies
 from verdict.ingestion import ingest_all, ingest_source
@@ -66,6 +67,10 @@ def main() -> None:
     aggregation = commands.add_parser("aggregate", help="Persist a weighted-median candidate")
     aggregation.add_argument("weighting_report_id", help="Retained weighting report to aggregate")
     aggregation.add_argument("--dataset", default="live")
+    confidence = commands.add_parser("confidence", help="Persist quality and availability gates")
+    confidence.add_argument("aggregation_report_id", help="Retained aggregation to assess")
+    confidence.add_argument("--dataset", default="live")
+    confidence.add_argument("--policy", type=Path, help="Confidence policy JSON")
     dependencies = commands.add_parser(
         "dependencies", help="Version and inspect dependency evidence"
     )
@@ -206,6 +211,24 @@ def main() -> None:
                 except ValueError as error:
                     parser.error(str(error))
                 print(json.dumps(report, indent=2))
+        elif args.command == "confidence":
+            try:
+                dataset = TypeAdapter(Dataset).validate_python(args.dataset)
+                policy = (
+                    ConfidencePolicy.model_validate_json(args.policy.read_text(encoding="utf-8"))
+                    if args.policy
+                    else ConfidencePolicy()
+                )
+                report = build_confidence_report(
+                    store,
+                    aggregation_report_id=args.aggregation_report_id,
+                    dataset=dataset,
+                    policy=policy,
+                )
+                store.save_confidence_round(report)
+                print(report.model_dump_json(indent=2))
+            except ValueError as error:
+                parser.error(str(error))
         elif args.command == "aggregate":
             try:
                 dataset = TypeAdapter(Dataset).validate_python(args.dataset)

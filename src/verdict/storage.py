@@ -26,6 +26,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 from verdict.aggregation import AggregationReport, aggregate
+from verdict.confidence import ConfidenceReport, assess_confidence
 from verdict.dependencies import DependencyRegistry, canonical_json, checksum
 from verdict.event_identity import same_event_content
 from verdict.models import Observation, Source
@@ -164,6 +165,17 @@ class AggregationRoundRow(Base):
     payload: Mapped[str] = mapped_column(Text)
 
 
+class ConfidenceRoundRow(Base):
+    __tablename__ = "confidence_rounds"
+    __table_args__ = (Index("ix_confidence_lookup", "dataset", "cutoff", "id"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    dataset: Mapped[str] = mapped_column(String(80))
+    cutoff: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    aggregation_report_id: Mapped[str] = mapped_column(String(64))
+    payload: Mapped[str] = mapped_column(Text)
+
+
 class AttemptConflict(ValueError):
     """An ingestion attempt identity was reused with different content."""
 
@@ -211,6 +223,74 @@ class ObservationStore:
             session.execute(text("SELECT id FROM weighting_rounds LIMIT 1"))
             session.execute(text("SELECT report_id FROM weighting_heads LIMIT 1"))
             session.execute(text("SELECT id FROM aggregation_rounds LIMIT 1"))
+            session.execute(text("SELECT id FROM confidence_rounds LIMIT 1"))
+
+    def save_confidence_round(self, report: ConfidenceReport) -> bool:
+        report = ConfidenceReport.model_validate(report)
+        payload = canonical_json(report.model_dump(mode="json"))
+        with self.session() as session, session.begin():
+            try:
+                with session.begin_nested():
+                    session.add(
+                        ConfidenceRoundRow(
+                            id=report.report_id,
+                            dataset=report.dataset,
+                            cutoff=report.cutoff,
+                            aggregation_report_id=report.aggregation_report_id,
+                            payload=payload,
+                        )
+                    )
+                    session.flush()
+            except IntegrityError:
+                existing = session.scalar(
+                    select(ConfidenceRoundRow.payload).where(
+                        ConfidenceRoundRow.id == report.report_id
+                    )
+                )
+                if existing != payload:
+                    raise ValueError("immutable confidence round identity conflict") from None
+                return False
+            aggregation_row = session.get(AggregationRoundRow, report.aggregation_report_id)
+            if aggregation_row is None:
+                raise ValueError("confidence aggregation report must be retained")
+            aggregation = AggregationReport.model_validate(
+                self._aggregation_payload(aggregation_row)
+            )
+            score, registry = self._validate_aggregation_evidence(session, aggregation)
+            if assess_confidence(aggregation, score, registry, policy=report.policy) != report:
+                raise ValueError("confidence report does not reproduce from retained evidence")
+        return True
+
+    @staticmethod
+    def _confidence_payload(row: ConfidenceRoundRow) -> dict:
+        report = ConfidenceReport.model_validate_json(row.payload)
+        if (report.report_id, report.dataset, report.cutoff, report.aggregation_report_id) != (
+            row.id,
+            row.dataset,
+            row.cutoff.replace(tzinfo=UTC) if row.cutoff.tzinfo is None else row.cutoff,
+            row.aggregation_report_id,
+        ):
+            raise ValueError("stored confidence round metadata mismatch")
+        return report.model_dump(mode="json")
+
+    def confidence_rounds(self, *, dataset: str = "live", limit: int = 10) -> list[dict]:
+        with self.session() as session:
+            rows = session.scalars(
+                select(ConfidenceRoundRow)
+                .where(ConfidenceRoundRow.dataset == dataset)
+                .order_by(ConfidenceRoundRow.cutoff.desc(), ConfidenceRoundRow.id.desc())
+                .limit(limit)
+            )
+            return [self._confidence_payload(row) for row in rows]
+
+    def get_confidence_round(self, report_id: str, *, dataset: str = "live") -> dict | None:
+        with self.session() as session:
+            row = session.scalar(
+                select(ConfidenceRoundRow).where(
+                    ConfidenceRoundRow.id == report_id, ConfidenceRoundRow.dataset == dataset
+                )
+            )
+            return self._confidence_payload(row) if row is not None else None
 
     def save_aggregation_round(self, report: AggregationReport) -> bool:
         report = AggregationReport.model_validate(report)
@@ -237,57 +317,63 @@ class ObservationStore:
                 if existing != payload:
                     raise ValueError("immutable aggregation round identity conflict") from None
                 return False
-            # As with scoring, insert first to serialize SQLite writes. Every
-            # evidence failure below rolls back the new report in this transaction.
-            weights_row = session.get(WeightingRoundRow, report.weighting_report_id)
-            score_row = session.get(ScoringRoundRow, report.scoring_report_id)
-            if weights_row is None or score_row is None:
-                raise ValueError("aggregation score and weights must be retained")
-            weights = self._weighting_payload(weights_row)
-            score = ScoringReport.model_validate(self._scoring_payload(score_row))
-            if aggregate(score, weights) != report:
-                raise ValueError("aggregation report does not reproduce from retained evidence")
-            registry_row = session.get(DependencyRegistryRow, report.registry_id)
-            if registry_row is None:
-                raise ValueError("aggregation dependency registry is missing")
-            registry = DependencyRegistry.model_validate_json(registry_row.payload)
-            if registry.registry_id != report.registry_id:
-                raise ValueError("aggregation dependency evidence mismatch")
-            inputs = [
-                Observation.model_validate_json(value)
-                for value in session.scalars(
-                    select(ObservationRow.payload).where(
-                        ObservationRow.dataset == report.dataset,
-                        ObservationRow.id.in_(score.input_observation_ids),
-                    )
-                )
-            ]
-            if (
-                len(inputs) != len(score.input_observation_ids)
-                or checksum({row.observation_id: row.model_dump(mode="json") for row in inputs})
-                != report.input_sha256
-            ):
-                raise ValueError("aggregation input evidence is missing or changed")
-            by_id = {row.observation_id: row for row in inputs}
-            timing = {item.source: item for item in score.policy.source_timing}
-            with localcontext() as context:
-                context.prec = 60
-                context.rounding = ROUND_HALF_EVEN
-                for item in report.inputs:
-                    sample = item.sample
-                    row = by_id.get(sample.observation_id)
-                    if sample.observation_id is not None and (
-                        row is None
-                        or row.source != sample.source
-                        or row.dataset != report.dataset
-                        or row.timestamp > report.cutoff
-                        or row.received_at > report.cutoff
-                    ):
-                        raise ValueError("aggregation selected observation mismatch")
-                    expected = availability(row, report.cutoff, timing[sample.source])
-                    if any(getattr(sample, key) != value for key, value in expected.items()):
-                        raise ValueError("aggregation selected observation mismatch")
+            self._validate_aggregation_evidence(session, report)
         return True
+
+    def _validate_aggregation_evidence(
+        self, session: Session, report: AggregationReport
+    ) -> tuple[ScoringReport, DependencyRegistry]:
+        # Called after the insert, within the same transaction. Confidence also
+        # verifies original observations, even when aggregation was saved earlier.
+        weights_row = session.get(WeightingRoundRow, report.weighting_report_id)
+        score_row = session.get(ScoringRoundRow, report.scoring_report_id)
+        if weights_row is None or score_row is None:
+            raise ValueError("aggregation score and weights must be retained")
+        weights = self._weighting_payload(weights_row)
+        score = ScoringReport.model_validate(self._scoring_payload(score_row))
+        if aggregate(score, weights) != report:
+            raise ValueError("aggregation report does not reproduce from retained evidence")
+        registry_row = session.get(DependencyRegistryRow, report.registry_id)
+        if registry_row is None:
+            raise ValueError("aggregation dependency registry is missing")
+        registry = DependencyRegistry.model_validate_json(registry_row.payload)
+        if registry.registry_id != report.registry_id:
+            raise ValueError("aggregation dependency evidence mismatch")
+        inputs = [
+            Observation.model_validate_json(value)
+            for value in session.scalars(
+                select(ObservationRow.payload).where(
+                    ObservationRow.dataset == report.dataset,
+                    ObservationRow.id.in_(score.input_observation_ids),
+                )
+            )
+        ]
+        if (
+            len(inputs) != len(score.input_observation_ids)
+            or checksum({row.observation_id: row.model_dump(mode="json") for row in inputs})
+            != report.input_sha256
+        ):
+            raise ValueError("aggregation input evidence is missing or changed")
+        by_id = {row.observation_id: row for row in inputs}
+        timing = {item.source: item for item in score.policy.source_timing}
+        with localcontext() as context:
+            context.prec = 60
+            context.rounding = ROUND_HALF_EVEN
+            for item in report.inputs:
+                sample = item.sample
+                row = by_id.get(sample.observation_id)
+                if sample.observation_id is not None and (
+                    row is None
+                    or row.source != sample.source
+                    or row.dataset != report.dataset
+                    or row.timestamp > report.cutoff
+                    or row.received_at > report.cutoff
+                ):
+                    raise ValueError("aggregation selected observation mismatch")
+                expected = availability(row, report.cutoff, timing[sample.source])
+                if any(getattr(sample, key) != value for key, value in expected.items()):
+                    raise ValueError("aggregation selected observation mismatch")
+        return score, registry
 
     @staticmethod
     def _aggregation_payload(row: AggregationRoundRow) -> dict:
