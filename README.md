@@ -235,8 +235,9 @@ Aggregation uses the weighting report's exact scoring evidence and final weights
 Exact half-weight ties select the lower price. Zero total weight returns an
 unavailable report with a null candidate; the bundled registry's unresolved
 upstreams therefore cannot produce a candidate. Reports retain all source samples,
-weights, and exclusions. Confidence and availability gates remain pending, and
-the live feed remains unavailable. See [aggregation rules and evidence](docs/AGGREGATION.md).
+weights, and exclusions. Quality/availability assessments consume these reports
+separately; the live feed remains unavailable. See
+[aggregation rules and evidence](docs/AGGREGATION.md).
 
 ## Quality and availability
 

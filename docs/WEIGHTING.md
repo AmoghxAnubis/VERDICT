@@ -125,5 +125,6 @@ integers; source and economic share limits cannot be 100%, and the unknown limit
 may be zero. These thresholds have not been calibrated on held-out six-provider
 history. Scores still use unweighted peer comparisons, which can follow a
 coordinated majority. [Diagnostic weighted-median aggregation](AGGREGATION.md)
-consumes these saved weights. Quality/confidence gates, deployment evidence
-matching, and publication remain subsequent work.
+consumes these saved weights. [Quality and availability assessments](CONFIDENCE.md)
+evaluate them separately. Independent-domain evidence, deployment matching, and
+publication remain subsequent work.
