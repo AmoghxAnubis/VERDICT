@@ -124,5 +124,6 @@ Recovery must exceed the quarantine threshold. Policy values are strict bounded
 integers; source and economic share limits cannot be 100%, and the unknown limit
 may be zero. These thresholds have not been calibrated on held-out six-provider
 history. Scores still use unweighted peer comparisons, which can follow a
-coordinated majority. Weighted median aggregation, quality/confidence gates,
-deployment evidence matching, and publication remain subsequent work.
+coordinated majority. [Diagnostic weighted-median aggregation](AGGREGATION.md)
+consumes these saved weights. Quality/confidence gates, deployment evidence
+matching, and publication remain subsequent work.

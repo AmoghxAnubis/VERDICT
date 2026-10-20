@@ -55,7 +55,7 @@ See [methods and measured results](HISTORICAL_VALIDATION.md).
 - [x] Registry of known/unknown upstream dependencies with evidence and versions.
 - [x] Historical consistency, uptime/freshness scoring, cold-start rules.
 - [x] Quarantine/recovery hysteresis and dependency-aware weight limits.
-- [ ] Weighted median with deterministic edge-case handling.
+- [x] Weighted median with deterministic edge-case handling.
 - [ ] Quality-score confidence breakdown and minimum availability gates.
 - [ ] Immutable round records, explanation API, and history.
 - [ ] Benchmarks covering isolated attacks, market moves, and correlated failures.
@@ -84,8 +84,15 @@ report. Immediate penalties, new-observation/time recovery gates, slow weight
 increases, and final-share caps are implemented with serialized dataset histories.
 All six bundled sources have unknown upstreams, so the shared unknown cap leaves
 zero allocatable weight. Synthetic complete graphs exercise nonzero allocations
-without asserting real independence. Weighted median and confidence/availability
-gates remain next; publication stays disabled. See [weighting rules](WEIGHTING.md).
+without asserting real independence. See [weighting rules](WEIGHTING.md).
+
+Diagnostic weighted-median aggregation now uses pinned scoring observations and
+final weights, with lower-price half-weight ties and explicit zero-total handling.
+Separate immutable reports, CLI persistence, and dataset-scoped explanation/history
+endpoints retain the complete samples, weights, and exclusions. Saving reproduces
+the candidate and validates retained payloads and selection boundaries. Confidence
+and independently evidenced domain availability gates remain next; the live feed
+and publication stay disabled. See [aggregation rules](AGGREGATION.md).
 
 ## Batch 4: dashboard and live updates
 

@@ -9,6 +9,7 @@ from pydantic import AwareDatetime
 from sqlalchemy.exc import SQLAlchemyError
 
 from verdict import __version__
+from verdict.aggregation import AggregationReport
 from verdict.config import Settings, get_settings
 from verdict.dependencies import Sha256, inspect_dependencies
 from verdict.models import SOURCES, Asset, Dataset, ObservationData, Source
@@ -156,6 +157,19 @@ def create_app(settings: Settings | None = None, store: ObservationStore | None 
         report = store.get_weighting_round(report_id, dataset=dataset)
         if report is None:
             raise HTTPException(404, detail="weighting round not found in selected dataset")
+        return report
+
+    @app.get("/v1/aggregations", response_model=list[AggregationReport])
+    def aggregation_rounds(
+        dataset: Dataset = "live", limit: Annotated[int, Query(ge=1, le=100)] = 10
+    ):
+        return store.aggregation_rounds(dataset=dataset, limit=limit)
+
+    @app.get("/v1/aggregations/{report_id}", response_model=AggregationReport)
+    def aggregation_detail(report_id: Sha256, dataset: Dataset = "live"):
+        report = store.get_aggregation_round(report_id, dataset=dataset)
+        if report is None:
+            raise HTTPException(404, detail="aggregation round not found in selected dataset")
         return report
 
     @app.get("/v1/dependencies")

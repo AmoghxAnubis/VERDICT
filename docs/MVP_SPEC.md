@@ -51,7 +51,7 @@ ML, staking/slashing, ZK proofs, TEEs, AVS, and non-price resolution are outside
 Schema migrations precede API/worker startup. SQLite is the local fallback;
 PostgreSQL is the shared deployment store. No network ingestion runs on import.
 
-## Aggregation contract (next milestone)
+## Aggregation contract (partially implemented)
 
 The statistical subset is implemented separately as described in
 [the statistical policy](STATISTICAL_ENGINE.md). It does not enable consensus,
@@ -82,18 +82,22 @@ Unknown relationships remain unknown; price correlation alone does not prove lin
 
 The [versioned dependency registry](DEPENDENCIES.md) now retains implementation
 evidence and explicit unknowns, with deterministic transitive inspection and
-immutable version storage. It does not yet establish independent domains, enforce
-dependency-aware weights, or bind the statistical round schema to a registry.
+immutable version storage. It does not yet establish independent domains or bind
+the legacy statistical round schema to a registry. Separate scoring, weighting,
+and aggregation reports pin their selected registry.
 
 [Diagnostic source scoring](SOURCE_SCORING.md) now implements fixed-grid observed
 availability, freshness, peer consistency, and cold-start caps. Its separate saved
 reports pin the dependency registry and source evidence. These uncalibrated scores
-do not implement quarantine, dependency-adjusted weights, or confidence. Existing
-statistical rounds and the frozen historical benchmark remain unchanged.
+feed [persistent quarantine/recovery and dependency caps](WEIGHTING.md).
+[Weighted-median candidates](AGGREGATION.md) now retain deterministic half-weight
+ties, zero-weight handling, and complete input explanations. Confidence and domain
+availability gates remain pending. Existing statistical rounds and the frozen
+historical benchmark remain unchanged.
 
 ## Result and failure contract
 
-Until consensus is implemented, `/v1/feed/ETH-USD` returns HTTP 503 with
+Until consensus output gates are implemented, `/v1/feed/ETH-USD` returns HTTP 503 with
 `value=null`, `confidence=null`, and `reason=consensus_engine_not_implemented`.
 Observations remain available separately.
 

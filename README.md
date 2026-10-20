@@ -8,8 +8,9 @@ SQLite/PostgreSQL storage, three exchange adapters, Chainlink/Pyth oracle reads,
 a Uniswap v3 pool adapter, optional Redis polling ingestion, persisted connector
 health, deterministic replay, explainable statistical rounds, a versioned dependency
 registry, diagnostic source scores with retained evidence and cold-start rules,
-and persistent quarantine/recovery with dependency-constrained weights.
-Consensus, the dashboard, and contracts are
+and persistent quarantine/recovery with dependency-constrained weights and
+diagnostic weighted-median candidates.
+Consensus output gates, the dashboard, and contracts are
 tracked in [the roadmap](docs/ROADMAP.md). The feed endpoint returns an explicit
 unavailable response until consensus exists.
 
@@ -109,6 +110,8 @@ for evidence boundaries and operating limits.
 | `GET /v1/scores/{report_id}` | Score breakdowns, sampled decisions, and pinned evidence |
 | `GET /v1/weights` | Saved quarantine/recovery transitions and constrained weights |
 | `GET /v1/weights/{report_id}` | Source states, dependency share caps, and pinned score/history |
+| `GET /v1/aggregations` | Saved diagnostic weighted-median candidates |
+| `GET /v1/aggregations/{report_id}` | Pinned observations, weights, exclusions, and candidate |
 | `GET /v1/dependencies` | Retained dependency registry versions |
 | `GET /v1/dependencies/{registry_id}` | Pinned graph and retained evidence |
 | `GET /v1/dependencies/{registry_id}/inspection` | Transitive dependencies, overlaps, and unknowns |
@@ -219,6 +222,19 @@ permits zero total weight even after recovery. Repeating a score is idempotent;
 new scores must advance in cutoff order with the same registry and policies.
 This does not yet produce consensus or enable publication. See
 [state transitions, policy defaults, and storage](docs/WEIGHTING.md).
+
+## Weighted-median candidates
+
+```powershell
+uv run --no-sync verdict aggregate <weighting_report_id> --dataset replay:six-provider
+```
+
+Aggregation uses the weighting report's exact scoring evidence and final weights.
+Exact half-weight ties select the lower price. Zero total weight returns an
+unavailable report with a null candidate; the bundled registry's unresolved
+upstreams therefore cannot produce a candidate. Reports retain all source samples,
+weights, and exclusions. Confidence and availability gates remain pending, and
+the live feed remains unavailable. See [aggregation rules and evidence](docs/AGGREGATION.md).
 
 ## Historical evaluation
 

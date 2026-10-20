@@ -10,6 +10,7 @@ from alembic import command
 from alembic.config import Config
 from pydantic import TypeAdapter
 
+from verdict.aggregation import build_aggregation_report
 from verdict.config import get_settings
 from verdict.dependencies import DependencyRegistry, bundled_registry, inspect_dependencies
 from verdict.ingestion import ingest_all, ingest_source
@@ -62,6 +63,9 @@ def main() -> None:
     weighting.add_argument(
         "--policy", type=Path, help="Weighting policy JSON; fixed for this dataset"
     )
+    aggregation = commands.add_parser("aggregate", help="Persist a weighted-median candidate")
+    aggregation.add_argument("weighting_report_id", help="Retained weighting report to aggregate")
+    aggregation.add_argument("--dataset", default="live")
     dependencies = commands.add_parser(
         "dependencies", help="Version and inspect dependency evidence"
     )
@@ -202,6 +206,16 @@ def main() -> None:
                 except ValueError as error:
                     parser.error(str(error))
                 print(json.dumps(report, indent=2))
+        elif args.command == "aggregate":
+            try:
+                dataset = TypeAdapter(Dataset).validate_python(args.dataset)
+                report = build_aggregation_report(
+                    store, weighting_report_id=args.weighting_report_id, dataset=dataset
+                )
+                store.save_aggregation_round(report)
+                print(report.model_dump_json(indent=2))
+            except ValueError as error:
+                parser.error(str(error))
         elif args.command == "weight":
             try:
                 dataset = TypeAdapter(Dataset).validate_python(args.dataset)
