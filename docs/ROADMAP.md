@@ -54,7 +54,7 @@ See [methods and measured results](HISTORICAL_VALIDATION.md).
 
 - [x] Registry of known/unknown upstream dependencies with evidence and versions.
 - [x] Historical consistency, uptime/freshness scoring, cold-start rules.
-- [ ] Quarantine/recovery hysteresis and dependency-aware weight limits.
+- [x] Quarantine/recovery hysteresis and dependency-aware weight limits.
 - [ ] Weighted median with deterministic edge-case handling.
 - [ ] Quality-score confidence breakdown and minimum availability gates.
 - [ ] Immutable round records, explanation API, and history.
@@ -66,8 +66,8 @@ The first dependency review retains the six adapters' implementation evidence,
 explicit unknown upstreams, and typed transitive relationships. Immutable registry
 versions, CLI registration/inspection, and read-only API access are implemented.
 Shared Chainlink protocol, Ethereum/RPC, and collector dependencies are visible;
-verified upstream independence, deployment matching, and dependency-aware weights
-remain pending. Inspections always leave independent-domain count unknown and
+verified upstream independence and deployment matching remain pending.
+Inspections always leave independent-domain count unknown and
 publication disabled. See [registry scope and operation](DEPENDENCIES.md).
 
 Fixed-grid diagnostic source scoring now records observed availability, freshness,
@@ -76,8 +76,17 @@ pin the dependency registry, policy, and selected evidence, with separate immuta
 storage and read-only history/detail endpoints. Three other fresh providers are
 required for each comparison; provider independence is not inferred. This is an
 uncalibrated quality indicator, not a voting weight or confidence probability.
-Quarantine/recovery and dependency-aware weighting remain next. See
+See
 [scoring policy and evidence](SOURCE_SCORING.md).
+
+Persistent quarantine/recovery and conservative dependency-aware weights now pin
+each transition to retained scores, policies, registry evidence, and its previous
+report. Immediate penalties, new-observation/time recovery gates, slow weight
+increases, and final-share caps are implemented with serialized dataset histories.
+All six bundled sources have unknown upstreams, so the shared unknown cap leaves
+zero allocatable weight. Synthetic complete graphs exercise nonzero allocations
+without asserting real independence. Weighted median and confidence/availability
+gates remain next; publication stays disabled. See [weighting rules](WEIGHTING.md).
 
 ## Batch 4: dashboard and live updates
 

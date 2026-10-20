@@ -106,9 +106,10 @@ window can score at most 166.
 
 The `cold_start` boolean is independent of current availability. `established`
 means the history requirements are met; it is not a health classification and can
-accompany zero. History can age out and a source can re-enter cold start. Persistent
-quarantine, slow recovery, and hysteresis remain the next milestone. This score
-alone must not be used to readmit a source after an attack.
+accompany zero. History can age out and a source can re-enter cold start.
+[Persistent quarantine, slow recovery, and hysteresis](WEIGHTING.md) consume saved
+scores in a separate weighting chain. This score alone must not be used to readmit
+a source after an attack.
 
 `--policy path/to/policy.json` accepts the `ScoringPolicy` JSON shape. Export the
 defaults for an explicit review:
@@ -144,10 +145,11 @@ Agreement is not independently known truth. Peer comparisons currently use
 provider identities without dependency-adjusted weights. A coordinated majority
 can appear consistent and exclude an honest minority. Asynchronous market updates
 can produce transient exclusions. Tests record these limitations; they do not
-establish calibrated accuracy. Registry unknowns are visible but not yet converted
-into weight caps.
+establish calibrated accuracy. Registry unknowns remain visible in scores;
+the separate weighting stage applies conservative dependency share caps.
 
 All scoring reports retain `independent_domain_count=null`, `confidence=null`, and
 `publication_ready=false`. Historical validation, upstream independence,
-quarantine/recovery, dependency-aware weights, and consensus gates remain open.
+and consensus gates remain open. Quarantine/recovery and dependency-aware weights
+are implemented separately and do not change these scoring guarantees.
 The live feed continues to return HTTP 503.

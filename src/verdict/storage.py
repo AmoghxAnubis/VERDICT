@@ -230,6 +230,17 @@ class ObservationStore:
                 .values(dataset=dataset, report_id=None)
                 .on_conflict_do_update(index_elements=["dataset"], set_={"dataset": dataset})
             )
+            head = session.get(WeightingHeadRow, dataset)
+            latest = session.scalar(
+                select(WeightingRoundRow)
+                .where(WeightingRoundRow.dataset == dataset)
+                .order_by(WeightingRoundRow.cutoff.desc(), WeightingRoundRow.id.desc())
+                .limit(1)
+            )
+            # A missing/reset/older pointer must not silently start a second chain.
+            if head.report_id != (latest.id if latest is not None else None):
+                raise ValueError("weighting head does not match latest retained round")
+            previous = self._weighting_payload(latest) if latest is not None else None
             existing = session.scalar(
                 select(WeightingRoundRow).where(
                     WeightingRoundRow.scoring_report_id == scoring_report_id,
@@ -256,13 +267,6 @@ class ObservationStore:
             if registry_row is None:
                 raise ValueError("scoring dependency registry is missing")
             registry = DependencyRegistry.model_validate_json(registry_row.payload)
-            head = session.get(WeightingHeadRow, dataset)
-            previous = None
-            if head.report_id is not None:
-                previous_row = session.get(WeightingRoundRow, head.report_id)
-                if previous_row is None:
-                    raise ValueError("weighting head points to missing evidence")
-                previous = self._weighting_payload(previous_row)
             report = advance_weights(score, registry, policy=policy, previous=previous)
             session.add(
                 WeightingRoundRow(

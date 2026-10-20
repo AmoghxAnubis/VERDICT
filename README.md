@@ -7,8 +7,9 @@ The backend provides a FastAPI service, decimal-safe observation schema, version
 SQLite/PostgreSQL storage, three exchange adapters, Chainlink/Pyth oracle reads,
 a Uniswap v3 pool adapter, optional Redis polling ingestion, persisted connector
 health, deterministic replay, explainable statistical rounds, a versioned dependency
-registry, and diagnostic source scores with retained evidence and cold-start rules.
-Consensus, dependency-aware weights, the dashboard, and contracts are
+registry, diagnostic source scores with retained evidence and cold-start rules,
+and persistent quarantine/recovery with dependency-constrained weights.
+Consensus, the dashboard, and contracts are
 tracked in [the roadmap](docs/ROADMAP.md). The feed endpoint returns an explicit
 unavailable response until consensus exists.
 
@@ -106,6 +107,8 @@ for evidence boundaries and operating limits.
 | `GET /v1/rounds/{round_id}` | One saved round, scoped to the selected dataset |
 | `GET /v1/scores` | Saved diagnostic source scores, scoped to the selected dataset |
 | `GET /v1/scores/{report_id}` | Score breakdowns, sampled decisions, and pinned evidence |
+| `GET /v1/weights` | Saved quarantine/recovery transitions and constrained weights |
+| `GET /v1/weights/{report_id}` | Source states, dependency share caps, and pinned score/history |
 | `GET /v1/dependencies` | Retained dependency registry versions |
 | `GET /v1/dependencies/{registry_id}` | Pinned graph and retained evidence |
 | `GET /v1/dependencies/{registry_id}/inspection` | Transitive dependencies, overlaps, and unknowns |
@@ -199,6 +202,23 @@ freshness, and peer-consistency scores with explicit cold-start requirements. Th
 short fixture demonstrates cold start. Scores retain every sampled decision and
 their input/registry/policy hashes. They are development quality indicators with
 publication disabled. See [scoring rules, CLI options, and limits](docs/SOURCE_SCORING.md).
+
+## Quarantine and weights
+
+Apply a retained scoring report to its dataset's persistent weighting history:
+
+```powershell
+uv run --no-sync verdict weight <scoring_report_id> --dataset replay:six-provider
+```
+
+Failures remove weight immediately. Recovery requires new evidence and elapsed
+time, followed by gradual weight increases. Caps limit each source, shared economic
+dependencies, and the pooled unresolved upstreams as shares of the final total.
+The bundled registry has unknowns for all six sources, so its conservative cap
+permits zero total weight even after recovery. Repeating a score is idempotent;
+new scores must advance in cutoff order with the same registry and policies.
+This does not yet produce consensus or enable publication. See
+[state transitions, policy defaults, and storage](docs/WEIGHTING.md).
 
 ## Historical evaluation
 

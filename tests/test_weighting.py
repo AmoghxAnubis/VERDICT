@@ -492,3 +492,29 @@ def test_upgrade_from_0007_preserves_scoring_evidence(store, scoring, registry):
     )
     report = store.apply_weighting(score.report_id, dataset=score.dataset)
     assert report.previous_report_id is None
+
+
+@pytest.mark.parametrize("damage", ["reset", "removed", "older", "missing_report"])
+def test_damaged_head_cannot_fork_retained_history(store, scoring, registry, damage):
+    scores = [persist_score(store, scoring, registry, at) for at in (600, 610, 620)]
+    first, second = [
+        store.apply_weighting(score.report_id, dataset=score.dataset) for score in scores[:2]
+    ]
+    with store.session() as session, session.begin():
+        head = session.get(WeightingHeadRow, first.dataset)
+        if damage == "removed":
+            session.delete(head)
+        else:
+            head.report_id = {"reset": None, "older": first.report_id, "missing_report": "0" * 64}[
+                damage
+            ]
+    for score in (scores[2], scores[0]):
+        with pytest.raises(ValueError, match="head does not match latest"):
+            store.apply_weighting(score.report_id, dataset=score.dataset)
+    assert [row["report_id"] for row in store.weighting_rounds(dataset=first.dataset)] == [
+        second.report_id,
+        first.report_id,
+    ]
+    with store.session() as session:
+        head = session.get(WeightingHeadRow, first.dataset)
+        assert head is None if damage == "removed" else head.report_id != second.report_id

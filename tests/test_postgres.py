@@ -1,5 +1,7 @@
 import os
 import uuid
+from concurrent.futures import ThreadPoolExecutor
+from datetime import timedelta
 
 import pytest
 from alembic import command
@@ -48,6 +50,30 @@ def test_postgres_migration_and_storage_contract(observation, monkeypatch):
         assert store.get_scoring_round(scored.report_id, dataset=scored.dataset) == (
             scored.model_dump(mode="json")
         )
+        with ThreadPoolExecutor(max_workers=4) as workers:
+            weighted = list(
+                workers.map(
+                    lambda _: store.apply_weighting(scored.report_id, dataset=scored.dataset),
+                    range(4),
+                )
+            )
+        assert all(item == weighted[0] for item in weighted)
+        successor = build_scoring_report(
+            store,
+            dataset=isolated.dataset,
+            cutoff=scored.cutoff + timedelta(seconds=scored.policy.step_seconds),
+            registry_id=registry.registry_id,
+            policy=scored.policy,
+        )
+        assert store.save_scoring_round(successor)
+        next_weight = store.apply_weighting(successor.report_id, dataset=successor.dataset)
+        assert next_weight.previous_report_id == weighted[0].report_id
+        assert store.apply_weighting(scored.report_id, dataset=scored.dataset) == weighted[0]
+        assert store.get_weighting_round(next_weight.report_id) is None
+        assert store.get_weighting_round(
+            next_weight.report_id, dataset=scored.dataset
+        ) == next_weight.model_dump(mode="json")
+        assert not next_weight.publication_ready
         report = analyze([isolated], dataset=isolated.dataset, cutoff=isolated.received_at)
         assert store.save_round(report)
         assert not store.save_round(report)
