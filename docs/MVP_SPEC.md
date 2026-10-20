@@ -91,13 +91,16 @@ availability, freshness, peer consistency, and cold-start caps. Its separate sav
 reports pin the dependency registry and source evidence. These uncalibrated scores
 feed [persistent quarantine/recovery and dependency caps](WEIGHTING.md).
 [Weighted-median candidates](AGGREGATION.md) now retain deterministic half-weight
-ties, zero-weight handling, and complete input explanations. Confidence and domain
-availability gates remain pending. Existing statistical rounds and the frozen
-historical benchmark remain unchanged.
+ties, zero-weight handling, and complete input explanations.
+[Diagnostic quality and availability assessments](CONFIDENCE.md) now retain a
+component breakdown and minimum gates. Registry v1 has no independence attestation,
+so domain availability fails as unknown and usable value/confidence remain null.
+Existing statistical rounds and the frozen historical benchmark remain unchanged.
 
 ## Result and failure contract
 
-Until consensus output gates are implemented, `/v1/feed/ETH-USD` returns HTTP 503 with
+Until independent-domain evidence and usable output are implemented,
+`/v1/feed/ETH-USD` returns HTTP 503 with
 `value=null`, `confidence=null`, and `reason=consensus_engine_not_implemented`.
 Observations remain available separately.
 

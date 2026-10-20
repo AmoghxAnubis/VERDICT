@@ -56,8 +56,8 @@ See [methods and measured results](HISTORICAL_VALIDATION.md).
 - [x] Historical consistency, uptime/freshness scoring, cold-start rules.
 - [x] Quarantine/recovery hysteresis and dependency-aware weight limits.
 - [x] Weighted median with deterministic edge-case handling.
-- [ ] Quality-score confidence breakdown and minimum availability gates.
-- [ ] Immutable round records, explanation API, and history.
+- [x] Quality-score confidence breakdown and minimum availability gates.
+- [x] Immutable round records, explanation API, and history.
 - [ ] Benchmarks covering isolated attacks, market moves, and correlated failures.
 
 Gate: bad or insufficient evidence cannot produce a falsely healthy result.
@@ -90,9 +90,18 @@ Diagnostic weighted-median aggregation now uses pinned scoring observations and
 final weights, with lower-price half-weight ties and explicit zero-total handling.
 Separate immutable reports, CLI persistence, and dataset-scoped explanation/history
 endpoints retain the complete samples, weights, and exclusions. Saving reproduces
-the candidate and validates retained payloads and selection boundaries. Confidence
-and independently evidenced domain availability gates remain next; the live feed
-and publication stay disabled. See [aggregation rules](AGGREGATION.md).
+the candidate and validates retained payloads and selection boundaries.
+See [aggregation rules](AGGREGATION.md).
+
+Quality assessments now retain seven component scores and ten minimum-availability
+gate decisions, with exact integer/rational arithmetic, registry age checks, and
+source/economic/unknown concentration limits. Separate immutable assessment records,
+CLI persistence, and dataset-scoped explanation/history endpoints are implemented.
+Independent-domain evidence is unsupported by registry v1 and fails explicitly as
+unknown, even for synthetic complete graphs. Thus a high diagnostic quality score
+cannot produce a usable value or feed confidence. Versioned independence/deployment
+evidence and complete-pipeline adversarial benchmarks remain necessary; the live
+feed and publication stay disabled. See [quality and gates](CONFIDENCE.md).
 
 ## Batch 4: dashboard and live updates
 

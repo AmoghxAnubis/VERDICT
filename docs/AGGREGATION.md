@@ -2,8 +2,8 @@
 
 `aggregation-v1` computes a reproducible candidate from one retained weighting
 report and its pinned scoring report. It does not use the latest database prices.
-Confidence, independent-domain availability, and publication gates remain pending:
-every report has `confidence=null`, `independent_domain_count=null`, and
+Separate [quality/availability assessments](CONFIDENCE.md) consume these reports;
+aggregation reports retain `confidence=null`, `independent_domain_count=null`, and
 `publication_ready=false`. A candidate is not a usable live feed result.
 
 ## Run and inspect
@@ -31,7 +31,7 @@ or resetting their quarantine histories.
 History defaults to 10 reports and accepts `limit=1..100`. API reads do not compute
 or persist reports. `/v1/feed/ETH-USD` continues to return HTTP 503 with null value
 and confidence; its existing reason remains `consensus_engine_not_implemented`
-until the full output contract and gates are implemented.
+until independent-domain evidence and the full usable output contract are implemented.
 
 ## Selection and exact-half behavior
 
@@ -63,7 +63,8 @@ very small values that Decimal may serialize in exponent notation.
 Positive total weight yields `status=diagnostic_candidate`. Zero total weight
 yields `status=unavailable`, `candidate_value=null`, no ordered sources, and the
 reason `zero_total_weight`. Both statuses explicitly report that confidence and
-availability gates are pending. No ordinary median, previous result, or latest
+availability gates are pending in the aggregation stage; saved confidence
+assessments evaluate those gates separately. No ordinary median, previous result, or latest
 observation substitutes for missing weight. Source count is not an independently
 verified domain count.
 
@@ -92,6 +93,6 @@ application-level immutability guarantees.
 
 This slice establishes deterministic aggregation, not calibrated accuracy or
 manipulation resistance. Scores still compare unweighted peers; a coordinated
-majority can appear consistent. Confidence breakdowns, independently evidenced
-domain gates, replay benchmarks for the complete consensus pipeline, and
-publication remain later work.
+majority can appear consistent. Confidence breakdowns and availability gate
+assessments are implemented separately. Independently supported domain evidence,
+replay benchmarks for the complete consensus pipeline, and publication remain later work.

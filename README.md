@@ -9,8 +9,8 @@ a Uniswap v3 pool adapter, optional Redis polling ingestion, persisted connector
 health, deterministic replay, explainable statistical rounds, a versioned dependency
 registry, diagnostic source scores with retained evidence and cold-start rules,
 and persistent quarantine/recovery with dependency-constrained weights and
-diagnostic weighted-median candidates.
-Consensus output gates, the dashboard, and contracts are
+diagnostic weighted-median candidates, and retained quality/availability assessments.
+Independent-domain evidence, usable feed output, the dashboard, and contracts are
 tracked in [the roadmap](docs/ROADMAP.md). The feed endpoint returns an explicit
 unavailable response until consensus exists.
 
@@ -112,6 +112,8 @@ for evidence boundaries and operating limits.
 | `GET /v1/weights/{report_id}` | Source states, dependency share caps, and pinned score/history |
 | `GET /v1/aggregations` | Saved diagnostic weighted-median candidates |
 | `GET /v1/aggregations/{report_id}` | Pinned observations, weights, exclusions, and candidate |
+| `GET /v1/confidence` | Saved diagnostic quality and availability assessments |
+| `GET /v1/confidence/{report_id}` | Quality components, dependency exposures, and gate decisions |
 | `GET /v1/dependencies` | Retained dependency registry versions |
 | `GET /v1/dependencies/{registry_id}` | Pinned graph and retained evidence |
 | `GET /v1/dependencies/{registry_id}/inspection` | Transitive dependencies, overlaps, and unknowns |
@@ -235,6 +237,19 @@ unavailable report with a null candidate; the bundled registry's unresolved
 upstreams therefore cannot produce a candidate. Reports retain all source samples,
 weights, and exclusions. Confidence and availability gates remain pending, and
 the live feed remains unavailable. See [aggregation rules and evidence](docs/AGGREGATION.md).
+
+## Quality and availability
+
+```powershell
+uv run --no-sync verdict confidence <aggregation_report_id> --dataset replay:six-provider
+```
+
+Assessments publish an uncalibrated quality score with component contributions
+and gates for source count, allocated budget, quality, concentration, unknowns,
+registry age, and independent domains. A high quality score cannot override missing
+independence evidence. Registry v1 cannot establish independent domains, so all
+assessments keep usable value/confidence null and publication disabled. See
+[formulas, defaults, and evidence requirements](docs/CONFIDENCE.md).
 
 ## Historical evaluation
 
