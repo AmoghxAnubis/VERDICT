@@ -1,7 +1,7 @@
 {
   "version": "adversarial-v1",
   "fixture": "../simulations/six-provider.json",
-  "fixture_sha256": "5fa2ba66a8d83ce62c3576fae50a50c3b8d46f3692970babdcc10c262201a573",
+  "fixture_sha256": "5d24ac9ad1e3339c7782b424605db440ef4e1caf2fdc89d6d50c032a76c7811e",
   "scoring": {
     "window_seconds": 60,
     "minimum_fresh_samples": 3,

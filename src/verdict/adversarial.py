@@ -54,7 +54,7 @@ class AdversarialSuite(FrozenModel):
             self.attack_end_seconds,
             self.last_round_seconds,
         )
-        if not all(a < b for a, b in zip(times, times[1:])):
+        if not all(a < b for a, b in zip(times, times[1:], strict=False)):
             raise ValueError("benchmark times must be strictly increasing")
         if any(time % self.scoring.step_seconds for time in times):
             raise ValueError("benchmark times must align to scoring steps")
@@ -73,7 +73,8 @@ def synthetic_registry(registry: DependencyRegistry) -> DependencyRegistry:
     data["edges"] = [edge for edge in data["edges"] if edge["upstream"] not in removed]
     data["version"] = "synthetic-adversarial-graph"
     data["scope"] = (
-        "SYNTHETIC TEST ONLY: unknowns removed to exercise nonzero weights; no independence evidence."
+        "SYNTHETIC TEST ONLY: unknowns removed to exercise nonzero weights; "
+        "no independence evidence."
     )
     return DependencyRegistry.model_validate(data)
 
@@ -219,9 +220,12 @@ def paired_metrics(clean, changed, suite, spec):
 def evaluate_adversarial(path: Path) -> dict:
     suite = AdversarialSuite.model_validate_json(path.read_text(encoding="utf-8"))
     fixture = path.parent / suite.fixture
-    if hashlib.sha256(fixture.read_bytes()).hexdigest() != suite.fixture_sha256:
+    if (
+        hashlib.sha256(fixture.read_text(encoding="utf-8").encode()).hexdigest()
+        != suite.fixture_sha256
+    ):
         raise ValueError("adversarial fixture checksum mismatch")
-    templates = load_observations(fixture)
+    templates = sorted(load_observations(fixture), key=lambda row: row.source)
     if len(templates) != 6 or {row.source for row in templates} != set(SOURCES):
         raise ValueError("benchmark fixture requires exactly one observation per provider")
     registry = bundled_registry()
@@ -278,7 +282,9 @@ def evaluate_adversarial(path: Path) -> dict:
         "suite_sha256": checksum(suite.model_dump(mode="json")),
         "interventions": CASES,
         "source_sha256": {
-            name: hashlib.sha256(Path(__file__).with_name(f"{name}.py").read_bytes()).hexdigest()
+            name: hashlib.sha256(
+                Path(__file__).with_name(f"{name}.py").read_text(encoding="utf-8").encode()
+            ).hexdigest()
             for name in modules
         },
         "profiles": results,
@@ -288,12 +294,16 @@ def evaluate_adversarial(path: Path) -> dict:
         "historical_validation_complete": False,
         "limitations": [
             "Synthetic six-provider diagnostic benchmark, not held-out market evidence.",
-            "Shortened scoring/recovery policies are explicit test settings, not production calibration.",
-            "Oracle/DEX provenance is copied from synthetic templates; no authentic reads or independence are established.",
+            "Shortened scoring/recovery policies are explicit test settings, "
+            "not production calibration.",
+            "Oracle/DEX provenance is copied from synthetic templates; "
+            "no authentic reads or independence are established.",
             "Synthetic registry removes unknowns solely to exercise nonzero allocation.",
-            "All availability assessments must remain unavailable because independent domains are unknown.",
+            "All availability assessments must remain unavailable because "
+            "independent domains are unknown.",
             "Correlated-majority errors measure agreement limits, not manipulation resistance.",
-            "Offline pure pipeline; SQL persistence, service load and live availability are separate validation.",
+            "Offline pure pipeline; SQL persistence, service load and live availability "
+            "are separate validation.",
         ],
     }
     report["report_id"] = checksum(report)

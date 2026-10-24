@@ -3,7 +3,7 @@
   "suite": {
     "version": "adversarial-v1",
     "fixture": "../simulations/six-provider.json",
-    "fixture_sha256": "5fa2ba66a8d83ce62c3576fae50a50c3b8d46f3692970babdcc10c262201a573",
+    "fixture_sha256": "5d24ac9ad1e3339c7782b424605db440ef4e1caf2fdc89d6d50c032a76c7811e",
     "scoring": {
       "version": "scoring-v1",
       "window_seconds": 60,
@@ -79,7 +79,7 @@
     "last_round_seconds": 300,
     "maximum_candidate_shift_bps": 5
   },
-  "suite_sha256": "a2c9bb0eac14e84c1dae4fa0422b7f8ba1ff122c7370c2e7c5d9d9e8707c662b",
+  "suite_sha256": "05daf54144fd2def0955fba136d6ea8b2ec9de266c77553a060ef9204ac36cee",
   "interventions": {
     "baseline": {
       "sources": []
@@ -138,7 +138,7 @@
     }
   },
   "source_sha256": {
-    "adversarial": "5681695714ddf9ce98f95ce3b0ccf72f5ea9dbb1de1b091c166481332ae0d8da",
+    "adversarial": "c11572e484ef4ee8da72951d6243c00cebc0bb534e9e9fd705cde28c1decdcd6",
     "models": "16c10d74420075d7a4f4cc58645f26971b57eb72c5d1d49ed4463d877f312ca6",
     "replay": "90287ae02ff4662da253bb1610bcee8c73dba154c4080c71fa61774e4b7175b2",
     "dependencies": "90bd851afb70885e039656e82c7a40337a0979702d2fda471b7bb81bcc3df047",
@@ -827,7 +827,7 @@
       "cases": {
         "baseline": {
           "observation_count": 186,
-          "observations_sha256": "429a503036a9738e70c1fb6974292a9935023d740f264682c1217dd6334e893f",
+          "observations_sha256": "7620edbc4893cea6bd4450f8c5ca8f9df195b0b68692a1fb405f027b51feac0c",
           "rounds": [
             {
               "seconds": 60,
@@ -4992,7 +4992,7 @@
         },
         "single_spike": {
           "observation_count": 186,
-          "observations_sha256": "533428246120208ab125bc0195900d7a589968ab6f4ad9d2f1f9a01a6e40917f",
+          "observations_sha256": "853112c681acf4ebfadf77dc1806b364ea65a7c48e807fcdedb54433b76ef97e",
           "rounds": [
             {
               "seconds": 60,
@@ -9151,7 +9151,7 @@
         },
         "market_move": {
           "observation_count": 186,
-          "observations_sha256": "b2b8b7f17c4521c6e5fad795e10149f18ea4407bbaeed5366e58ab49a58bd7cb",
+          "observations_sha256": "8e66f8ea319b08b47f5525c4a88739fd817a564e94dfb21e43f92bda27552af7",
           "rounds": [
             {
               "seconds": 60,
@@ -13330,7 +13330,7 @@
         },
         "correlated_pair": {
           "observation_count": 186,
-          "observations_sha256": "1db5be7109d88b69f59366c86b0e7a3c03888db6e37951717e7aa19a767ebca1",
+          "observations_sha256": "41747e305e0c4717a300b9f18c1e487a57c7cb48b2a5d11987f723f313e90176",
           "rounds": [
             {
               "seconds": 60,
@@ -17481,7 +17481,7 @@
         },
         "correlated_majority": {
           "observation_count": 186,
-          "observations_sha256": "0be66cd8c5b5823129e1073788b076b2de65bb3c89a9bf29310a32b766f32f71",
+          "observations_sha256": "6d6b36770b522d6877cd3a7f404150f22590b452fcf72c577c3c885e742f0f00",
           "rounds": [
             {
               "seconds": 60,
@@ -21636,7 +21636,7 @@
         },
         "source_outage": {
           "observation_count": 180,
-          "observations_sha256": "d1f088561f75efec5236093514600c9aaa919b78af5a781dd3708fa1748734c3",
+          "observations_sha256": "a42d0bb9bd4db7e62bf81a27cab8f7ee975ac221aff4e83322ae2ae61f34cd77",
           "rounds": [
             {
               "seconds": 60,
@@ -25797,7 +25797,7 @@
         },
         "shared_outage": {
           "observation_count": 174,
-          "observations_sha256": "c8f94988c1ca07c82377a4b68065804e58729ba6a66c523431204e0b2232b495",
+          "observations_sha256": "5d774f8c62d30d45705056fbb39d47e6d3ff1ce1e2ad82b36b7851a8505ae642",
           "rounds": [
             {
               "seconds": 60,
@@ -29952,7 +29952,7 @@
         },
         "late_receipt": {
           "observation_count": 186,
-          "observations_sha256": "bed4a16dccb9fa32866125cf6c533ee48b78df2e56e270e127a851eefc825ce6",
+          "observations_sha256": "5e00f0c3437167ed11d9c5623f0df971609dbf1c3bd25711025543f968e4403f",
           "rounds": [
             {
               "seconds": 60,
@@ -34656,7 +34656,7 @@
       "cases": {
         "baseline": {
           "observation_count": 186,
-          "observations_sha256": "f5a75c8adbf67214c1d9d8f7082debe567f74fce03ead29d12efd06c96c83305",
+          "observations_sha256": "fd02841c3bd5518d6d68b75bd844ca51f8af52273611c75287ccdc859c1ae3fc",
           "rounds": [
             {
               "seconds": 60,
@@ -38821,7 +38821,7 @@
         },
         "single_spike": {
           "observation_count": 186,
-          "observations_sha256": "c9f88a0ad4d03045b2f73e2636573a7131f75e9f0055a1fc9801a1057e74e53f",
+          "observations_sha256": "a03a70e1b0839cae9b786a76ee7e183f095d55314e1714f292b07c5fc1eb784a",
           "rounds": [
             {
               "seconds": 60,
@@ -42925,7 +42925,7 @@
         },
         "market_move": {
           "observation_count": 186,
-          "observations_sha256": "a3c1c2a90917396897fe27ce08ffdbcd3b211b204f897fd09bff0ee145987a85",
+          "observations_sha256": "76182336cd6341c7602c31ae6d342bb8c5f4443348e8bf23b994c2299f041c8d",
           "rounds": [
             {
               "seconds": 60,
@@ -47104,7 +47104,7 @@
         },
         "correlated_pair": {
           "observation_count": 186,
-          "observations_sha256": "4c2aca20a463b6b86c67288e0662be63230e07e6e1504cc11f8902e04d3ee1e4",
+          "observations_sha256": "fb280341fda6be9eca4c808254766fcf58a1f19caa9dd19755615b09c2b39f9c",
           "rounds": [
             {
               "seconds": 60,
@@ -51211,7 +51211,7 @@
         },
         "correlated_majority": {
           "observation_count": 186,
-          "observations_sha256": "f15fe182aa211634c675ec3ce9d3e54df8d62100a8e4ab8fd0b88acfa96b66c0",
+          "observations_sha256": "e6b90b87824346abb0eafb8d54b6182dbb39a346893b2f6389b249f5af0da322",
           "rounds": [
             {
               "seconds": 60,
@@ -55322,7 +55322,7 @@
         },
         "source_outage": {
           "observation_count": 180,
-          "observations_sha256": "4cd0639efecaef00f941ce0f1f8fd06f874db6ec195c044ebf17766e7a4cc1c0",
+          "observations_sha256": "72d2e7dfbe76c9269eb10ea18ad6102166bbe9da808f6293c0734cc8d8dfbc88",
           "rounds": [
             {
               "seconds": 60,
@@ -59438,7 +59438,7 @@
         },
         "shared_outage": {
           "observation_count": 174,
-          "observations_sha256": "a0fe2cca3480b6294c5a146159dfcddfd8ce534ce504fe8d65d4af25f2c3913f",
+          "observations_sha256": "bacd5d26c9740f7441a18001be96cb444c47609e4782a44dd1081e21c5cffe95",
           "rounds": [
             {
               "seconds": 60,
@@ -63557,7 +63557,7 @@
         },
         "late_receipt": {
           "observation_count": 186,
-          "observations_sha256": "f73054a24387390ef6598f1b6a25d84fc9e2bbd00b1fab3d53384526fe0f1398",
+          "observations_sha256": "98f8b114970403b80dc49056eef62aec7b953bf76d75602bec9f1ea56c6f17b9",
           "rounds": [
             {
               "seconds": 60,
@@ -67703,5 +67703,5 @@
     "Correlated-majority errors measure agreement limits, not manipulation resistance.",
     "Offline pure pipeline; SQL persistence, service load and live availability are separate validation."
   ],
-  "report_id": "84b01538ec3285c7edf4eab3aff97975c979668779de76f53bff63e6b5c10a0c"
+  "report_id": "698ec5a002560b50c38cef8c9fed09cf2e212b22664617e5621fa793793b6e76"
 }
