@@ -180,6 +180,22 @@ class AttemptConflict(ValueError):
     """An ingestion attempt identity was reused with different content."""
 
 
+class RoundEventHeadRow(Base):
+    __tablename__ = "round_event_head"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    sequence: Mapped[int] = mapped_column(BigInteger)
+
+
+class RoundEventRow(Base):
+    __tablename__ = "round_events"
+    __table_args__ = (Index("ix_round_event_dataset", "dataset", "sequence"),)
+
+    sequence: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
+    dataset: Mapped[str] = mapped_column(String(80))
+    assessment_id: Mapped[str] = mapped_column(String(64), unique=True)
+
+
 class CheckpointConflict(ValueError):
     """Another worker advanced this checkpoint; reload before attempting recovery."""
 
@@ -224,6 +240,9 @@ class ObservationStore:
             session.execute(text("SELECT report_id FROM weighting_heads LIMIT 1"))
             session.execute(text("SELECT id FROM aggregation_rounds LIMIT 1"))
             session.execute(text("SELECT id FROM confidence_rounds LIMIT 1"))
+            session.execute(text("SELECT sequence FROM round_events LIMIT 1"))
+            if session.scalar(select(RoundEventHeadRow.sequence).where(RoundEventHeadRow.id == 1)) is None:
+                raise ValueError("round event head is missing; apply database migrations")
 
     def save_confidence_round(self, report: ConfidenceReport) -> bool:
         report = ConfidenceReport.model_validate(report)
@@ -259,7 +278,41 @@ class ObservationStore:
             score, registry = self._validate_aggregation_evidence(session, aggregation)
             if assess_confidence(aggregation, score, registry, policy=report.policy) != report:
                 raise ValueError("confidence report does not reproduce from retained evidence")
+            # A transactional row update serializes allocation until commit. A normal
+            # PostgreSQL sequence could expose N+1 before the transaction for N commits.
+            sequence = session.scalar(
+                update(RoundEventHeadRow)
+                .where(RoundEventHeadRow.id == 1)
+                .values(sequence=RoundEventHeadRow.sequence + 1)
+                .returning(RoundEventHeadRow.sequence)
+            )
+            if sequence is None:
+                raise ValueError("round event head is missing")
+            session.add(RoundEventRow(sequence=sequence, dataset=report.dataset,
+                                      assessment_id=report.report_id))
         return True
+
+    def round_events(self, *, dataset: str, after: int, limit: int = 100) -> dict:
+        with self.session() as session:
+            head = session.scalar(select(RoundEventHeadRow.sequence).where(RoundEventHeadRow.id == 1))
+            if head is None or after < 0 or after > head:
+                raise ValueError("invalid event cursor; reload the dashboard snapshot")
+            rows = list(session.scalars(
+                select(RoundEventRow).where(RoundEventRow.dataset == dataset,
+                                           RoundEventRow.sequence > after)
+                .order_by(RoundEventRow.sequence).limit(limit + 1)
+            ))
+            events = [{"cursor": row.sequence, "assessment_id": row.assessment_id,
+                       "dataset": row.dataset, "type": "round"} for row in rows[:limit]]
+            # Advance through other datasets only once the selected backlog is exhausted.
+            cursor = events[-1]["cursor"] if len(rows) > limit else head
+            return {"events": events, "cursor": cursor, "has_more": len(rows) > limit}
+
+    def datasets(self) -> list[str]:
+        with self.session() as session:
+            datasets = set(session.scalars(select(ObservationRow.dataset).distinct()))
+            datasets.update(session.scalars(select(ConfidenceRoundRow.dataset).distinct()))
+            return ["live", *sorted(datasets - {"live"})]
 
     @staticmethod
     def _confidence_payload(row: ConfidenceRoundRow) -> dict:
