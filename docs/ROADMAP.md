@@ -30,7 +30,9 @@ Six adapters, block-pinned oracle/DEX reads, retained provenance, and six-provid
 synthetic replay are implemented. Live six-provider availability and historical
 calibration remain unverified. Optional Redis polling ingestion now includes SQL
 receipt deduplication, commit-before-acknowledgement, and stale pending recovery;
-real Redis/PostgreSQL runtime validation remains pending locally. Coinbase streaming now
+Real PostgreSQL 18.1 storage/runtime validation now passes locally, including a
+receipt-deduplication fix; Redis and the Compose PostgreSQL 17 runtime remain
+unverified. See [runtime checks](RUNTIME_VALIDATION.md). Coinbase streaming now
 has bounded REST recovery, durable checkpoints, and heartbeat/reconnect handling;
 its public WebSocket/REST bootstrap was exercised live. Binance.US
 is a distinct USD venue, not an implicit conversion of Binance ETH/USDT. A live

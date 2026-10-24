@@ -327,5 +327,13 @@ storage contract against a disposable PostgreSQL database, set
 `VERDICT_TEST_DATABASE_URL` before pytest. The PostgreSQL test applies migrations
 and uses an isolated replay namespace; do not point it at production.
 
+With PostgreSQL installed, create, test, and stop an isolated local cluster:
+
+```powershell
+.venv/Scripts/python.exe scripts/check_postgres.py --postgres-bin 'C:/Program Files/PostgreSQL/18/bin' --full-suite
+```
+
+See [runtime validation and measured coverage](docs/RUNTIME_VALIDATION.md).
+
 See [the MVP specification](docs/MVP_SPEC.md) for rules and assumptions, and
 [the original vision](VERDICT_Project_Document.md) for the full project document. 

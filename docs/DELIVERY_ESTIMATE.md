@@ -33,6 +33,11 @@ generalized data domains, ZK/TEE/AVS work—is outside MVP and requires separate
 scoped research, staffing and estimates. A defensible final date for that entire
 vision is not available from the current roadmap.
 
-Next sequence: review measured benchmark limitations; close service-runtime and
-evidence/calibration gaps; implement dashboard/live updates; build evidence and
-testnet integration. Refresh this estimate when those external gates are resolved.
+PostgreSQL 18.1 runtime/storage checks now pass, including a corrected queue
+receipt-deduplication defect. Real Redis and the pinned PostgreSQL 17 container
+runtime still need verification. This progress does not materially change the
+estimate above.
+
+Next sequence: finish available service-runtime and evidence/calibration checks;
+implement dashboard/live updates; build evidence and testnet integration. Refresh
+this estimate when those external gates are resolved.
