@@ -58,7 +58,7 @@ See [methods and measured results](HISTORICAL_VALIDATION.md).
 - [x] Weighted median with deterministic edge-case handling.
 - [x] Quality-score confidence breakdown and minimum availability gates.
 - [x] Immutable round records, explanation API, and history.
-- [ ] Benchmarks covering isolated attacks, market moves, and correlated failures.
+- [x] Benchmarks covering isolated attacks, market moves, and correlated failures.
 
 Gate: bad or insufficient evidence cannot produce a falsely healthy result.
 
@@ -102,6 +102,17 @@ unknown, even for synthetic complete graphs. Thus a high diagnostic quality scor
 cannot produce a usable value or feed confidence. Versioned independence/deployment
 evidence and complete-pipeline adversarial benchmarks remain necessary; the live
 feed and publication stay disabled. See [quality and gates](CONFIDENCE.md).
+
+Full-pipeline synthetic benchmarks now retain 400 rounds across eight scenarios and
+two explicitly distinguished dependency profiles. Isolated spikes and a correlated
+pair are quarantined, outages/delays expire under freshness policy, and recovery is
+measured. A correlated four-provider majority shifts the candidate by 35% and fails
+the frozen attack target; every availability assessment still blocks usable output.
+These shortened test policies do not establish default-policy or historical
+calibration, verified independence, or coordinated-majority resistance. The Batch 3
+implementation checklist is complete; its real-evidence release gate remains open.
+See [benchmark methods and results](ADVERSARIAL_BENCHMARKS.md) and the
+[remaining delivery estimate](DELIVERY_ESTIMATE.md).
 
 ## Batch 4: dashboard and live updates
 

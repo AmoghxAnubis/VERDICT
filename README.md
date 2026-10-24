@@ -265,6 +265,19 @@ uv run --no-sync verdict history evaluate benchmarks/historical-v1.json benchmar
 Historical receipt times are assumed, gaps remain missing, and the result does not
 enable publication. See [methods and results](docs/HISTORICAL_VALIDATION.md).
 
+## Full-pipeline adversarial benchmarks
+
+```powershell
+uv run --no-sync verdict benchmark benchmarks/adversarial-v1.json --output .cache/adversarial-report.json
+```
+
+The offline synthetic suite exercises scoring, quarantine/recovery, weights,
+aggregation and availability gates across 400 rounds. The correlated-majority
+attack target fails; all usable outputs remain unavailable. `--require-targets`
+writes the report before returning a failing exit code. See
+[methods and results](docs/ADVERSARIAL_BENCHMARKS.md) and the
+[delivery estimate](docs/DELIVERY_ESTIMATE.md).
+
 ## PostgreSQL and Docker
 
 ```powershell
