@@ -777,7 +777,7 @@ class ObservationStore:
         insert = sqlite_insert if self.engine.dialect.name == "sqlite" else postgres_insert
         identity = str(attempt.attempt_id)
         with self.session() as session, session.begin():
-            claimed = session.execute(
+            claimed = session.scalar(
                 insert(IngestionReceiptRow)
                 .values(
                     id=identity,
@@ -786,8 +786,11 @@ class ObservationStore:
                     processed_at=datetime.now(UTC),
                 )
                 .on_conflict_do_nothing(index_elements=["id"])
-            ).rowcount
-            if not claimed:
+                .returning(IngestionReceiptRow.id)
+            )
+            # psycopg can report rowcount=-1 for INSERT ... ON CONFLICT.
+            # RETURNING distinguishes a claim from a duplicate on both backends.
+            if claimed is None:
                 previous = session.get(IngestionReceiptRow, identity)
                 if previous.content_hash != attempt.content_hash:
                     raise AttemptConflict("ingestion attempt identity changed content")
