@@ -397,3 +397,33 @@ real service runtime, load and live outage behavior remain unverified. The backe
 benchmark implementation milestone is complete; release evidence remains open.
 See [benchmark design and measurements](ADVERSARIAL_BENCHMARKS.md) and the
 [remaining delivery estimate](DELIVERY_ESTIMATE.md).
+
+# Actual PostgreSQL runtime and queue receipt fix
+
+Validated on 2026-10-24 using installed PostgreSQL 18.1 on Windows, with a new
+localhost-only cluster and database for every run.
+
+- The full suite passes **466 tests**, including all five actual PostgreSQL checks;
+  only the real Redis contract is skipped. Ruff lint and formatting checks pass.
+- The first actual storage run exposed receipt redelivery recounting health.
+  A rolled-back diagnostic probe confirmed psycopg reports `rowcount=-1` for both
+  inserted and conflicting receipt inserts. Claims now use `RETURNING id`, with
+  no returned row treated as a duplicate. SQLite and PostgreSQL regressions pass.
+- Actual concurrent success/error claims apply one effect across four consumers.
+  Reopened connections preserve deduplication, changed attempt contents fail, and
+  new attempts remain distinct. Observation conflicts roll back receipts and health;
+  a corrected redelivery can claim that attempt afterward.
+- PostgreSQL runs every migration through `0010` and validates ORM/schema agreement,
+  retained evidence, concurrent report persistence, weighting successors, health,
+  SQL inbox and Coinbase checkpoints. A separate 25-round synthetic pipeline with
+  positive weights reproduces in-memory scoring/weighting/aggregation/assessment
+  IDs through SQL, including attack quarantine, recovery and unavailable output.
+- `scripts/check_postgres.py` provisions the isolated cluster, runs either the five
+  storage checks or the full suite, retains server logs/JUnit XML, and stops the
+  server after success or failure. The final full-suite run confirmed shutdown.
+
+PostgreSQL 17 in the pinned Compose/CI environment, actual Redis behavior, container
+builds, host-failure durability, failover, sustained load and live-provider recovery
+remain unverified locally. Docker's daemon is not running. This PostgreSQL 18.1
+result does not establish upstream independence or enable publication. See
+[commands, scope and limits](RUNTIME_VALIDATION.md).

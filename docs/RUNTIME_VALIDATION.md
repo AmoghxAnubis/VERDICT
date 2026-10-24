@@ -40,6 +40,10 @@ Five actual PostgreSQL integration checks pass:
   IDs through actual SQL selection and persistence, including nonzero allocation,
   isolated-attack quarantine, recovery, and null usable confidence/value.
 
+The full regression run with PostgreSQL enabled passes **466 tests**, with the real
+Redis test as the sole skip. Ruff lint and formatting checks pass. The helper
+confirmed server shutdown after the full run.
+
 ## Fixed runtime defect
 
 The first real run failed queue receipt deduplication: after a duplicate
