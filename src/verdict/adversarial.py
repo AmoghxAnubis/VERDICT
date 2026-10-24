@@ -2,7 +2,7 @@
 
 import hashlib
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal, localcontext
+from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from fractions import Fraction
 from pathlib import Path
 from typing import Literal
@@ -218,6 +218,14 @@ def paired_metrics(clean, changed, suite, spec):
 
 
 def evaluate_adversarial(path: Path) -> dict:
+    # Normalizing oracle fixtures also uses Decimal; protect the complete run.
+    with localcontext() as context:
+        context.prec = 60
+        context.rounding = ROUND_HALF_EVEN
+        return _evaluate_adversarial(path)
+
+
+def _evaluate_adversarial(path: Path) -> dict:
     suite = AdversarialSuite.model_validate_json(path.read_text(encoding="utf-8"))
     fixture = path.parent / suite.fixture
     if (

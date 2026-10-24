@@ -20,6 +20,11 @@ def report():
     return adversarial.evaluate_adversarial(SUITE)
 
 
+def test_retained_result_reproduces(report):
+    retained = ROOT / "benchmarks/results/adversarial-v1.json"
+    assert json.loads(retained.read_text(encoding="utf-8")) == report
+
+
 def test_full_pipeline_never_publishes_even_with_high_quality(report):
     assert report["report_id"] == checksum({k: v for k, v in report.items() if k != "report_id"})
     count = 0
