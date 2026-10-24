@@ -241,7 +241,10 @@ class ObservationStore:
             session.execute(text("SELECT id FROM aggregation_rounds LIMIT 1"))
             session.execute(text("SELECT id FROM confidence_rounds LIMIT 1"))
             session.execute(text("SELECT sequence FROM round_events LIMIT 1"))
-            if session.scalar(select(RoundEventHeadRow.sequence).where(RoundEventHeadRow.id == 1)) is None:
+            if (
+                session.scalar(select(RoundEventHeadRow.sequence).where(RoundEventHeadRow.id == 1))
+                is None
+            ):
                 raise ValueError("round event head is missing; apply database migrations")
 
     def save_confidence_round(self, report: ConfidenceReport) -> bool:
@@ -288,22 +291,37 @@ class ObservationStore:
             )
             if sequence is None:
                 raise ValueError("round event head is missing")
-            session.add(RoundEventRow(sequence=sequence, dataset=report.dataset,
-                                      assessment_id=report.report_id))
+            session.add(
+                RoundEventRow(
+                    sequence=sequence, dataset=report.dataset, assessment_id=report.report_id
+                )
+            )
         return True
 
     def round_events(self, *, dataset: str, after: int, limit: int = 100) -> dict:
         with self.session() as session:
-            head = session.scalar(select(RoundEventHeadRow.sequence).where(RoundEventHeadRow.id == 1))
+            head = session.scalar(
+                select(RoundEventHeadRow.sequence).where(RoundEventHeadRow.id == 1)
+            )
             if head is None or after < 0 or after > head:
                 raise ValueError("invalid event cursor; reload the dashboard snapshot")
-            rows = list(session.scalars(
-                select(RoundEventRow).where(RoundEventRow.dataset == dataset,
-                                           RoundEventRow.sequence > after)
-                .order_by(RoundEventRow.sequence).limit(limit + 1)
-            ))
-            events = [{"cursor": row.sequence, "assessment_id": row.assessment_id,
-                       "dataset": row.dataset, "type": "round"} for row in rows[:limit]]
+            rows = list(
+                session.scalars(
+                    select(RoundEventRow)
+                    .where(RoundEventRow.dataset == dataset, RoundEventRow.sequence > after)
+                    .order_by(RoundEventRow.sequence)
+                    .limit(limit + 1)
+                )
+            )
+            events = [
+                {
+                    "cursor": row.sequence,
+                    "assessment_id": row.assessment_id,
+                    "dataset": row.dataset,
+                    "type": "round",
+                }
+                for row in rows[:limit]
+            ]
             # Advance through other datasets only once the selected backlog is exhausted.
             cursor = events[-1]["cursor"] if len(rows) > limit else head
             return {"events": events, "cursor": cursor, "has_more": len(rows) > limit}
