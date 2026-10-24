@@ -1,0 +1,22 @@
+{
+  "version": "adversarial-v1",
+  "fixture": "../simulations/six-provider.json",
+  "fixture_sha256": "5fa2ba66a8d83ce62c3576fae50a50c3b8d46f3692970babdcc10c262201a573",
+  "scoring": {
+    "window_seconds": 60,
+    "minimum_fresh_samples": 3,
+    "minimum_comparisons": 3,
+    "minimum_unique_observations": 3
+  },
+  "weighting": {
+    "recovery_new_observations": 2,
+    "recovery_seconds": 10,
+    "increase_per_round_bps": 2000,
+    "source_budget_bps": 2000
+  },
+  "first_round_seconds": 60,
+  "attack_start_seconds": 120,
+  "attack_end_seconds": 180,
+  "last_round_seconds": 300,
+  "maximum_candidate_shift_bps": 5
+}
