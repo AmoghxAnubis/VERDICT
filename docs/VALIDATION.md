@@ -365,3 +365,35 @@ nodes are removed from a synthetic graph. Independent-domain and deployment
 evidence, held-out six-provider calibration, full-pipeline adversarial benchmarks,
 and usable feed output remain open. Publication stays disabled.
 See [formulas, policy, and evidence limits](CONFIDENCE.md).
+
+# Full-pipeline adversarial benchmarks
+
+Validated on 2026-10-24 with the project-local Python 3.12 runtime.
+
+- 461 automated tests pass, including 16 benchmark checks. The optional real Redis
+  and PostgreSQL tests remain skipped without service URLs. Ruff lint and
+  formatting checks pass. Tests ran with Windows temporary-directory access;
+  the existing sandbox temp-directory permissions prevented the initial run.
+- The offline CLI retained 400 rounds across eight six-provider scenarios and two
+  explicit registry profiles. Every round executes scoring, stateful weighting,
+  aggregation and quality/availability gates. Bundled unknowns produce zero weight;
+  the synthetic profile exercises positive candidates without independence claims.
+- Retained results reproduce exactly, including under reversed fixture input order
+  and a changed caller Decimal precision/rounding context. Fixture/temporal
+  validation, event/receipt cutoff selection, delayed-data visibility, quarantine,
+  recovery, null usable output and all independent-domain failures are checked.
+- Single-spike candidate shift is at most one basis point, with immediate
+  quarantine and first positive recovery weight 50 seconds after intervention end.
+  Shared outages and delayed receipts trigger quarantine 20 seconds after onset.
+  A coordinated market move produces no extra quarantine decisions in this grid.
+- The correlated-majority intervention shifts the candidate by 3,500 basis points,
+  exceeding the frozen five-basis-point target. The actual strict CLI run writes
+  the retained report and exits with code 1. All 400 usable outputs still remain
+  null and publication stays disabled; the test suite asserts this measured failure.
+
+These are synthetic measurements under explicitly shortened test policies.
+Production-default/historical calibration, independent upstream/deployment evidence,
+real service runtime, load and live outage behavior remain unverified. The backend
+benchmark implementation milestone is complete; release evidence remains open.
+See [benchmark design and measurements](ADVERSARIAL_BENCHMARKS.md) and the
+[remaining delivery estimate](DELIVERY_ESTIMATE.md).
