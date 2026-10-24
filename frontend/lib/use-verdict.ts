@@ -10,7 +10,7 @@ export function useVerdict(dataset: string, pinned: string | null, refresh: numb
     let active = true, socket: WebSocket | null = null, retry: ReturnType<typeof setTimeout>;
     let cursor = 0, delay = 1000, chain = Promise.resolve();
     const controller = new AbortController();
-    setData(null); setError(null); setStatus(pinned ? "Historical round" : "Connecting");
+    setData(previous => previous?.dataset === dataset ? previous : null); setError(null); setStatus(pinned ? "Historical round" : "Connecting");
     async function load() {
       const params = new URLSearchParams({ dataset });
       if (pinned) params.set("assessment_id", pinned);

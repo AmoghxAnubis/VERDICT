@@ -150,7 +150,7 @@ export default function Dashboard() {
         {view === "Alerts" && <div className="alerts-grid"><section className="card"><div className="card-heading"><div><h2>Availability checks</h2><p>Quality alone never overrides missing evidence.</p></div><Badge tone="warning">{failed.length} blocked</Badge></div><Gates data={data} /></section><section className="card"><div className="card-heading"><div><h2>Source decisions</h2><p>Current exclusions and recovery requirements</p></div></div>{data.sources.filter(s => s.reasons.length).map(s => <button key={s.source} className="source-alert" onClick={() => setSelected(s)}><SourceMark source={s.source} /><div><strong>{human(s.source)}</strong><p>{s.reasons.map(human).join(" · ")}</p></div><Icon name="Arrow" size={16} /></button>)}{data.sources.every(s => !s.reasons.length) && <Empty title="No current source exclusions">The selected round still requires every publication gate to pass.</Empty>}</section></div>}
         {pinned && <div className="pinned-bar"><span>Inspecting retained round <code>{short(pinned)}</code> · {fullTime(data.as_of)}</span><button className="text-link" onClick={() => { setPinned(null); setPlaying(false); }}>Return to latest round ↗</button></div>}
         <footer className="page-footer"><span><span className="brand-mini">V</span> Evidence before confidence.</span><span>ETH-USD · {replay ? "Isolated synthetic dataset" : "Live dataset"} · Publication disabled</span></footer>
-        <SourceDialog source={selected} data={data} close={() => setSelected(null)} />
+        <SourceDialog source={data.sources.find(s => s.source === selected?.source) || null} data={data} close={() => setSelected(null)} />
       </>}
       </main></div>
   </div>;
