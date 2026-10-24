@@ -100,8 +100,8 @@ CLI persistence, and dataset-scoped explanation/history endpoints are implemente
 Independent-domain evidence is unsupported by registry v1 and fails explicitly as
 unknown, even for synthetic complete graphs. Thus a high diagnostic quality score
 cannot produce a usable value or feed confidence. Versioned independence/deployment
-evidence and complete-pipeline adversarial benchmarks remain necessary; the live
-feed and publication stay disabled. See [quality and gates](CONFIDENCE.md).
+evidence remains necessary; the full-pipeline benchmarks are described below.
+The live feed and publication stay disabled. See [quality and gates](CONFIDENCE.md).
 
 Full-pipeline synthetic benchmarks now retain 400 rounds across eight scenarios and
 two explicitly distinguished dependency profiles. Isolated spikes and a correlated

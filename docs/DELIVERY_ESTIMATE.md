@@ -36,4 +36,3 @@ vision is not available from the current roadmap.
 Next sequence: review measured benchmark limitations; close service-runtime and
 evidence/calibration gaps; implement dashboard/live updates; build evidence and
 testnet integration. Refresh this estimate when those external gates are resolved.
-week, stable MVP scope, and timely provider credentials, infrastructure and review.
