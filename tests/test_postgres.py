@@ -1,7 +1,9 @@
 import os
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from datetime import timedelta
+from datetime import datetime, timedelta
+from decimal import Decimal
+from pathlib import Path
 
 import pytest
 from alembic import command
@@ -14,7 +16,13 @@ from verdict.dependencies import bundled_registry
 from verdict.queue_models import QueuedAttempt
 from verdict.scoring import ScoringPolicy, build_scoring_report
 from verdict.statistics import analyze
-from verdict.storage import ObservationStore, build_engine
+from verdict.storage import (
+    AttemptConflict,
+    IngestionReceiptRow,
+    ObservationConflict,
+    ObservationStore,
+    build_engine,
+)
 
 
 @pytest.mark.skipif(
@@ -135,3 +143,132 @@ def test_postgres_migration_and_storage_contract(observation, monkeypatch):
     finally:
         engine.dispose()
         get_settings.cache_clear()
+
+
+@pytest.fixture
+def postgres_store(monkeypatch):
+    database_url = os.getenv("VERDICT_TEST_DATABASE_URL")
+    if not database_url:
+        pytest.skip("PostgreSQL URL not provided")
+    monkeypatch.setenv("VERDICT_DATABASE_URL", database_url)
+    get_settings.cache_clear()
+    engine = build_engine(database_url)
+    try:
+        command.upgrade(Config("alembic.ini"), "head")
+        yield ObservationStore(engine)
+    finally:
+        engine.dispose()
+        get_settings.cache_clear()
+
+
+@pytest.mark.parametrize("failure", [False, True])
+def test_postgres_receipt_claims_serialize_and_survive_reconnection(
+    postgres_store, market_observation, failure
+):
+    store = postgres_store
+    row = market_observation(dataset="live", event=f"pg-receipt-{uuid.uuid4().hex}")
+    queued = (
+        QueuedAttempt(source="coinbase", error_type="ConnectError")
+        if failure
+        else (QueuedAttempt(source="coinbase", observation=row))
+    )
+    before = store.health().get("coinbase", {}).get("attempts", 0)
+    with ThreadPoolExecutor(max_workers=4) as workers:
+        outcomes = list(workers.map(lambda _: store.consume_attempt(queued), range(4)))
+    expected = "recorded_error" if failure else "inserted"
+    assert outcomes.count(expected) == 1
+    assert outcomes.count("duplicate_attempt") == 3
+    assert store.health()["coinbase"]["attempts"] == before + 1
+    health = store.health()
+    reopened = build_engine(str(store.engine.url))
+    try:
+        assert ObservationStore(reopened).consume_attempt(queued) == "duplicate_attempt"
+    finally:
+        reopened.dispose()
+    assert store.health() == health
+    changed = queued.model_copy(update={"attempted_at": queued.attempted_at + timedelta(seconds=1)})
+    with pytest.raises(AttemptConflict):
+        store.consume_attempt(changed)
+    assert store.health() == health
+    distinct = queued.model_copy(update={"attempt_id": uuid.uuid4()})
+    assert store.consume_attempt(distinct) == (
+        "recorded_error" if failure else "duplicate_observation"
+    )
+    assert store.health()["coinbase"]["attempts"] == before + 2
+
+
+def test_postgres_failed_observation_rolls_back_receipt_and_health(
+    postgres_store, market_observation
+):
+    store = postgres_store
+    row = market_observation(dataset="live", event=f"pg-conflict-{uuid.uuid4().hex}")
+    assert store.consume_attempt(QueuedAttempt(source="coinbase", observation=row)) == "inserted"
+    changed = row.model_copy(update={"value": Decimal("999")})
+    conflict = QueuedAttempt(source="coinbase", observation=changed)
+    health = store.health()
+    with pytest.raises(ObservationConflict):
+        store.consume_attempt(conflict)
+    with store.session() as session:
+        assert session.get(IngestionReceiptRow, str(conflict.attempt_id)) is None
+    assert store.health() == health
+    corrected = conflict.model_copy(update={"observation": row})
+    assert store.consume_attempt(corrected) == "duplicate_observation"
+    assert store.consume_attempt(corrected) == "duplicate_attempt"
+
+
+def test_postgres_positive_pipeline_quarantine_and_recovery(postgres_store):
+    from verdict.adversarial import (
+        CASES,
+        AdversarialSuite,
+        observations,
+        run_case,
+        synthetic_registry,
+    )
+    from verdict.replay import load_observations
+
+    root = Path(__file__).resolve().parents[1]
+    suite = AdversarialSuite.model_validate_json(
+        (root / "benchmarks/adversarial-v1.json").read_text(encoding="utf-8")
+    )
+    registry = synthetic_registry(bundled_registry())
+    rows = observations(
+        load_observations(root / "simulations/six-provider.json"),
+        suite,
+        "single_spike",
+        CASES["single_spike"],
+        "synthetic",
+    )
+    dataset = f"replay:pg-pipeline-{uuid.uuid4().hex}"
+    rows = [row.model_copy(update={"dataset": dataset}) for row in rows]
+    expected = run_case(rows, suite, registry)
+    store = postgres_store
+    store.save_dependency_registry(registry)
+    assert store.add_many(rows) == len(rows)
+    for tick in expected:
+        score = build_scoring_report(
+            store,
+            dataset=dataset,
+            cutoff=datetime.fromisoformat(tick["cutoff"]),
+            registry_id=registry.registry_id,
+            policy=suite.scoring,
+        )
+        assert store.save_scoring_round(score)
+        assert score.report_id == tick["scoring_report_id"]
+        weight = store.apply_weighting(score.report_id, dataset=dataset, policy=suite.weighting)
+        assert weight.report_id == tick["weighting_report_id"]
+        candidate = build_aggregation_report(
+            store, weighting_report_id=weight.report_id, dataset=dataset
+        )
+        assert store.save_aggregation_round(candidate)
+        assert candidate.report_id == tick["aggregation_report_id"]
+        quality = build_confidence_report(
+            store,
+            aggregation_report_id=candidate.report_id,
+            dataset=dataset,
+            policy=suite.confidence,
+        )
+        assert store.save_confidence_round(quality)
+        assert quality.report_id == tick["assessment_id"]
+        assert quality.value is quality.confidence is None and not quality.publication_ready
+    assert expected[-1]["sources"]["coinbase"]["weight_bps"] > 0
+    assert any(tick["candidate_value"] is not None for tick in expected)

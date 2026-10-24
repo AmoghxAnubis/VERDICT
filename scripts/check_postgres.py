@@ -16,6 +16,9 @@ ROOT = Path(__file__).resolve().parents[1]
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--postgres-bin", type=Path, help="Directory containing PostgreSQL tools")
+    parser.add_argument(
+        "--full-suite", action="store_true", help="Run all tests with PostgreSQL enabled"
+    )
     args = parser.parse_args()
     suffix = ".exe" if os.name == "nt" else ""
     commands = {}
@@ -93,17 +96,20 @@ def main() -> int:
                 "verdict_runtime",
             ]
         )
+        targets = [] if args.full_suite else ["tests/test_postgres.py"]
         result = execute(
             [
                 sys.executable,
                 "-m",
                 "pytest",
-                "tests/test_postgres.py",
+                *targets,
                 "-q",
                 "-p",
                 "no:cacheprovider",
                 "--basetemp",
                 str(run / "pytest"),
+                "--junitxml",
+                str(run / "results.xml"),
             ],
             check=False,
         )
