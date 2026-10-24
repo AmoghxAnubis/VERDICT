@@ -71,6 +71,10 @@ def main() -> None:
     confidence.add_argument("aggregation_report_id", help="Retained aggregation to assess")
     confidence.add_argument("--dataset", default="live")
     confidence.add_argument("--policy", type=Path, help="Confidence policy JSON")
+    benchmark = commands.add_parser("benchmark", help="Evaluate a frozen full-pipeline synthetic suite")
+    benchmark.add_argument("suite", type=Path)
+    benchmark.add_argument("--output", type=Path, required=True)
+    benchmark.add_argument("--require-targets", action="store_true")
     dependencies = commands.add_parser(
         "dependencies", help="Version and inspect dependency evidence"
     )
@@ -96,6 +100,17 @@ def main() -> None:
                 help="Exit unsuccessfully after writing results if held-out targets are unmet",
             )
     args = parser.parse_args()
+    if args.command == "benchmark":
+        from verdict.adversarial import evaluate_adversarial
+
+        report = evaluate_adversarial(args.suite)
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+        print(json.dumps({"report_id": report["report_id"], "output": str(args.output),
+                          "attack_targets_met": report["attack_targets_met"]}))
+        if args.require_targets and not report["attack_targets_met"]:
+            raise SystemExit(1)
+        return
     if args.command == "history":
         if args.history_action == "fetch":
             from verdict.historical import fetch_history
