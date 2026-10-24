@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     pyth_hermes_url: str = "https://hermes.pyth.network"
     pyth_api_key: SecretStr = SecretStr("")
     log_level: str = "INFO"
+    dashboard_origins: tuple[str, ...] = ("http://127.0.0.1:3000", "http://localhost:3000")
 
 
 @lru_cache

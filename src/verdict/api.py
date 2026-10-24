@@ -1,11 +1,12 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
-from pydantic import AwareDatetime
+from pydantic import AwareDatetime, TypeAdapter, ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
 from verdict import __version__
@@ -38,6 +39,59 @@ def create_app(settings: Settings | None = None, store: ObservationStore | None 
             store.engine.dispose()
 
     app = FastAPI(title="VERDICT API", version=__version__, lifespan=lifespan)
+
+    @app.get("/v1/datasets")
+    def datasets():
+        return store.datasets()
+
+    @app.get("/v1/dashboard")
+    def dashboard(dataset: Dataset = "live", assessment_id: Sha256 | None = None):
+        from verdict.dashboard import snapshot
+
+        try:
+            return snapshot(store, dataset=dataset, assessment_id=assessment_id)
+        except LookupError as error:
+            raise HTTPException(404, detail=str(error)) from None
+        except ValueError:
+            raise HTTPException(503, detail="round evidence unavailable") from None
+
+    @app.websocket("/v1/stream")
+    async def round_stream(websocket: WebSocket):
+        origin = websocket.headers.get("origin")
+        if origin is not None and origin not in settings.dashboard_origins:
+            await websocket.close(code=1008)
+            return
+        try:
+            dataset = TypeAdapter(Dataset).validate_python(
+                websocket.query_params.get("dataset", "live")
+            )
+            raw = websocket.query_params.get("after", "0")
+            if not raw.isascii() or not raw.isdecimal() or len(raw) > 19:
+                raise ValueError("invalid cursor")
+            after = int(raw)
+            batch = await asyncio.to_thread(store.round_events, dataset=dataset, after=after)
+        except (ValueError, ValidationError, SQLAlchemyError):
+            await websocket.close(code=1008)
+            return
+        await websocket.accept()
+        try:
+            await websocket.send_json({"type": "hello", "dataset": dataset, "protocol": 1})
+            while True:
+                await websocket.send_json({"type": "batch", "dataset": dataset, **batch})
+                after = batch["cursor"]
+                if not batch["has_more"]:
+                    try:
+                        message = await asyncio.wait_for(websocket.receive_text(), timeout=2)
+                        if message != "ping":
+                            await websocket.close(code=1008)
+                            return
+                    except TimeoutError:
+                        pass
+                batch = await asyncio.to_thread(store.round_events, dataset=dataset, after=after)
+        except WebSocketDisconnect:
+            pass
+        except (SQLAlchemyError, ValueError):
+            await websocket.close(code=1011)
 
     @app.exception_handler(SQLAlchemyError)
     async def storage_error(request: Request, error: SQLAlchemyError) -> JSONResponse:

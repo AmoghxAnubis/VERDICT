@@ -77,6 +77,23 @@ def main() -> None:
     benchmark.add_argument("suite", type=Path)
     benchmark.add_argument("--output", type=Path, required=True)
     benchmark.add_argument("--require-targets", action="store_true")
+    demo = commands.add_parser("demo", help="Retain isolated synthetic dashboard replay rounds")
+    demo.add_argument("suite", type=Path)
+    demo.add_argument(
+        "--case",
+        default="all",
+        choices=[
+            "all",
+            "baseline",
+            "single_spike",
+            "market_move",
+            "correlated_pair",
+            "correlated_majority",
+            "source_outage",
+            "shared_outage",
+            "late_receipt",
+        ],
+    )
     dependencies = commands.add_parser(
         "dependencies", help="Version and inspect dependency evidence"
     )
@@ -173,6 +190,11 @@ def main() -> None:
         store = ObservationStore(engine) if engine is not None else None
         if store is not None:
             store.check_ready()
+        if args.command == "demo":
+            from verdict.dashboard import seed_demo
+
+            print(json.dumps(seed_demo(store, args.suite, case=args.case)))
+            return
         if args.command == "ingest":
             if queued_producer:
                 from verdict.queue import run_queued_ingestion

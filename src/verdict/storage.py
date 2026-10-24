@@ -22,7 +22,7 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.engine import Engine, make_url
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 from verdict.aggregation import AggregationReport, aggregate
@@ -245,7 +245,7 @@ class ObservationStore:
                 session.scalar(select(RoundEventHeadRow.sequence).where(RoundEventHeadRow.id == 1))
                 is None
             ):
-                raise ValueError("round event head is missing; apply database migrations")
+                raise SQLAlchemyError("round event head is missing; apply database migrations")
 
     def save_confidence_round(self, report: ConfidenceReport) -> bool:
         report = ConfidenceReport.model_validate(report)
@@ -308,7 +308,11 @@ class ObservationStore:
             rows = list(
                 session.scalars(
                     select(RoundEventRow)
-                    .where(RoundEventRow.dataset == dataset, RoundEventRow.sequence > after)
+                    .where(
+                        RoundEventRow.dataset == dataset,
+                        RoundEventRow.sequence > after,
+                        RoundEventRow.sequence <= head,
+                    )
                     .order_by(RoundEventRow.sequence)
                     .limit(limit + 1)
                 )
@@ -331,6 +335,15 @@ class ObservationStore:
             datasets = set(session.scalars(select(ObservationRow.dataset).distinct()))
             datasets.update(session.scalars(select(ConfidenceRoundRow.dataset).distinct()))
             return ["live", *sorted(datasets - {"live"})]
+
+    def event_cursor(self) -> int:
+        with self.session() as session:
+            sequence = session.scalar(
+                select(RoundEventHeadRow.sequence).where(RoundEventHeadRow.id == 1)
+            )
+            if sequence is None:
+                raise SQLAlchemyError("round event head is missing")
+            return sequence
 
     @staticmethod
     def _confidence_payload(row: ConfidenceRoundRow) -> dict:
