@@ -6,15 +6,6 @@ import path from "node:path";
 const baseline = "replay:adv-synthetic-baseline";
 const short = (id: string) => `${id.slice(0, 7)}…${id.slice(-5)}`;
 
-test.afterEach(async ({ page }, testInfo) => {
-  if (testInfo.status !== testInfo.expectedStatus) {
-    console.log(await page.evaluate(() => ({
-      viewport: { innerWidth, scrollX, scrollY, width: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth, visual: visualViewport && { width: visualViewport.width, height: visualViewport.height, offsetTop: visualViewport.offsetTop } },
-      overflow: [...document.querySelectorAll("body *")].filter(element => element.getBoundingClientRect().right > document.documentElement.clientWidth + 2).map(element => ({ tag: element.tagName, cls: element.className, right: element.getBoundingClientRect().right, position: getComputedStyle(element).position })).slice(0, 30),
-    })));
-  }
-});
-
 async function replay(page: Page, dataset = baseline) {
   await page.goto("/");
   await expect(page.getByRole("button", { name: "Synthetic replay", exact: true })).toBeEnabled();
@@ -127,7 +118,7 @@ test("service failure displays an error and retry recovers", async ({ page }, te
   await expect(page.getByText("Usable feed value withheld")).toBeVisible();
 });
 
-test("websocket reconnect resumes its cursor and loads a committed assessment", async ({ page }, testInfo) => {
+test("websocket reconnect resumes its cursor and refreshes committed history", async ({ page }, testInfo) => {
   const sockets: WebSocketRoute[] = [];
   await page.routeWebSocket("**/v1/stream?*", socket => {
     sockets.push(socket);
@@ -140,11 +131,16 @@ test("websocket reconnect resumes its cursor and loads a committed assessment", 
   await current.close({ code: 1012, reason: "browser verification reconnect" });
   const result = JSON.parse(execFileSync(process.env.VERDICT_E2E_PYTHON!, [path.resolve("../scripts/browser_fixture.py"), "append", "--minimum-quality", testInfo.project.name === "desktop" ? "8001" : "8002"], { encoding: "utf8" }));
   expect(result.inserted).toBe(true);
-  await expect(page.locator(".metric-card").filter({ hasText: "Diagnostic candidate" })).toContainText(short(result.report_id));
+  await expect(page.locator(".chart-footer")).toContainText(`${before.history.length + 1} retained rounds`);
   await expect(page.locator(".connection")).toContainText("Connected");
   expect(sockets.some(socket => {
     const url = new URL(socket.url());
     return socket !== current && url.searchParams.get("dataset") === baseline && url.searchParams.get("after") === String(before.cursor);
   })).toBe(true);
+  // Equal-cutoff assessments use report-ID ordering, rather than commit order.
+  await page.getByRole("navigation").getByRole("button", { name: "History" }).click();
+  await page.getByLabel("Filter round history").fill(result.report_id);
+  await page.getByRole("button", { name: /Inspect round/ }).click();
+  await expect(page.locator(".metric-card").filter({ hasText: "Diagnostic candidate" })).toContainText(short(result.report_id));
   await expect(page.getByText("Usable feed value withheld")).toBeVisible();
 });
