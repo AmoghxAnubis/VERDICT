@@ -10,7 +10,10 @@ health, deterministic replay, explainable statistical rounds, a versioned depend
 registry, diagnostic source scores with retained evidence and cold-start rules,
 and persistent quarantine/recovery with dependency-constrained weights and
 diagnostic weighted-median candidates, and retained quality/availability assessments.
-Independent-domain evidence, usable feed output, the dashboard, and contracts are
+The Next.js dashboard adds source details, history, alerts, dependency inspection,
+isolated replay controls, and resumable round updates. See
+[dashboard setup and browser checks](docs/DASHBOARD.md).
+Independent-domain evidence, usable feed output, and contracts are
 tracked in [the roadmap](docs/ROADMAP.md). The feed endpoint returns an explicit
 unavailable response until consensus exists.
 
