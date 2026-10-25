@@ -82,6 +82,11 @@ The mobile checks found and fixed a hidden source-table header label escaping it
 scroll container. Making the container a positioned ancestor keeps that label
 within its scrolling region and restores taps after source inspection.
 
+The final backend regression run, including the subsequent evidence-bundle slice,
+passes 495 tests with six optional PostgreSQL/Redis checks skipped. TypeScript,
+Ruff lint, and Ruff formatting checks pass. The configured hosted CI browser job
+has not been executed from this local verification session.
+
 These checks establish the diagnostic dashboard workflow. Live-provider endurance,
 upstream independence, calibrated confidence, and testnet publication remain
 separate roadmap gates.

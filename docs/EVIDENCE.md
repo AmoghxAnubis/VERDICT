@@ -117,6 +117,11 @@ or a different expected root fail. The proof does not carry a root to trust.
 
 ## Validation scope
 
+Validated on 25 October 2026: 19 focused evidence tests pass. The full backend
+regression run passes **495 tests**, with six optional PostgreSQL/Redis integration
+checks skipped in this run. Ruff lint/formatting and frontend TypeScript checks
+pass. The production dashboard browser suite separately passes all ten checks.
+
 Tests pin exact encoding bytes and an independent three-leaf hash construction,
 exercise every leaf of 1-, 2-, 3-, 5-, 8-, 9-, 17-, and 32-leaf trees, and reject
 modified paths, counts, contexts, payloads, and roots. A real retained 25-round
