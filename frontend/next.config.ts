@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const config: NextConfig = {
+  distDir: process.env.VERDICT_NEXT_DIST_DIR || ".next",
   poweredByHeader: false,
   async rewrites() {
     const backend = process.env.VERDICT_API_URL || "http://127.0.0.1:8000";
