@@ -1,9 +1,19 @@
 import { expect, test, type Page, type WebSocketRoute } from "@playwright/test";
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 
 const baseline = "replay:adv-synthetic-baseline";
 const short = (id: string) => `${id.slice(0, 7)}…${id.slice(-5)}`;
+
+test.afterEach(async ({ page }, testInfo) => {
+  if (testInfo.status !== testInfo.expectedStatus) {
+    console.log(await page.evaluate(() => ({
+      viewport: { innerWidth, scrollX, scrollY, width: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth, visual: visualViewport && { width: visualViewport.width, height: visualViewport.height, offsetTop: visualViewport.offsetTop } },
+      overflow: [...document.querySelectorAll("body *")].filter(element => element.getBoundingClientRect().right > document.documentElement.clientWidth + 2).map(element => ({ tag: element.tagName, cls: element.className, right: element.getBoundingClientRect().right, position: getComputedStyle(element).position })).slice(0, 30),
+    })));
+  }
+});
 
 async function replay(page: Page, dataset = baseline) {
   await page.goto("/");
@@ -37,12 +47,19 @@ test("live unavailable state, replay evidence, source details, graph and export"
   await expect(page.locator(".graph-inspection strong")).toHaveText("source:coinbase");
   await page.getByRole("navigation").getByRole("button", { name: /^Alerts/ }).click();
   await expect(page.getByRole("heading", { name: "Availability checks", exact: true })).toBeVisible();
-  await expect(page.locator(".gate-list")).toContainText("Independent");
+  await expect(page.locator(".gate-list")).toContainText(/independent domains/i);
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: /Export evidence/ }).click();
-  expect((await download).suggestedFilename()).toMatch(/^verdict-[a-f0-9]{64}\.json$/);
+  const exported = await download;
+  expect(exported.suggestedFilename()).toMatch(/^verdict-[a-f0-9]{64}\.json$/);
+  const evidence = JSON.parse(readFileSync((await exported.path())!, "utf8"));
+  expect(evidence.dataset).toBe(baseline);
+  expect(evidence.value).toBeNull();
+  expect(evidence.confidence).toBeNull();
+  expect(evidence.assessment.registry_id).toBe(evidence.registry.registry_id);
   await page.getByRole("navigation").getByRole("button", { name: "Overview" }).click();
   await page.screenshot({ path: testInfo.outputPath("baseline.png"), fullPage: true });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(errors).toEqual([]);
 });
 
@@ -77,15 +94,34 @@ test("history pins evidence and replay shows attack quarantine and recovery", as
   await expect(page.getByText("No diagnostic candidate yet", { exact: true })).toBeVisible();
 });
 
+test("source outage exposes stale evidence and recovery", async ({ page }, testInfo) => {
+  await replay(page, "replay:adv-synthetic-source_outage");
+  const response = await page.request.get("/api/verdict/dashboard?dataset=replay%3Aadv-synthetic-source_outage");
+  const data = await response.json();
+  const outage = data.history.find((round: { cutoff: string }) => round.cutoff.endsWith("00:02:40Z"));
+  await page.getByRole("navigation").getByRole("button", { name: "History" }).click();
+  await page.getByLabel("Filter round history").fill(outage.report_id);
+  await page.getByRole("button", { name: /Inspect round/ }).click();
+  await page.getByRole("button", { name: "View Coinbase details" }).click();
+  await expect(page.getByRole("dialog").locator(".detail-list")).toContainText(/stale/i);
+  await expect(page.getByRole("dialog").locator(".detail-list")).toContainText("0.00%");
+  await page.screenshot({ path: testInfo.outputPath("source-outage.png"), fullPage: true });
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: /Return to latest round/ }).click();
+  await page.getByRole("button", { name: "View Coinbase details" }).click();
+  await expect(page.getByRole("dialog").locator(".badge")).toHaveText(/active/i);
+  await expect(page.getByRole("dialog").locator(".detail-list")).toContainText(/fresh/i);
+});
+
 test("service failure displays an error and retry recovers", async ({ page }, testInfo) => {
   await page.route("**/api/verdict/dashboard?*", route => route.fulfill({ status: 503, body: "unavailable" }));
   await page.goto("/");
-  await expect(page.getByRole("alert")).toContainText("evidence service is unavailable");
+  await expect(page.locator(".error-banner")).toContainText("evidence service is unavailable");
   await expect(page.locator(".connection")).toContainText("Disconnected");
   await page.screenshot({ path: testInfo.outputPath("unavailable.png"), fullPage: true });
   await page.unroute("**/api/verdict/dashboard?*");
   await page.getByRole("button", { name: "Retry now" }).click();
-  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.locator(".error-banner")).toHaveCount(0);
   await expect(page.locator(".connection")).toContainText("Connected");
   await expect(page.getByText("Usable feed value withheld")).toBeVisible();
 });
