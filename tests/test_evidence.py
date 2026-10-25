@@ -151,7 +151,11 @@ def test_rehashed_tampering_missing_history_reordering_and_extras_fail(retained)
         update={"payload": {**observation.payload, "event_sequence": 0}}
     )
     with pytest.raises(ValueError, match="noncanonical"):
-        verify_bundle(reseal(bundle, [noncanonical if leaf == observation else leaf for leaf in bundle.leaves]))
+        verify_bundle(
+            reseal(
+                bundle, [noncanonical if leaf == observation else leaf for leaf in bundle.leaves]
+            )
+        )
     with pytest.raises(ValueError, match="missing observation"):
         verify_bundle(reseal(bundle, [leaf for leaf in bundle.leaves if leaf != observation]))
     genesis = next(

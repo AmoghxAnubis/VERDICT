@@ -13,6 +13,8 @@ diagnostic weighted-median candidates, and retained quality/availability assessm
 The Next.js dashboard adds source details, history, alerts, dependency inspection,
 isolated replay controls, and resumable round updates. See
 [dashboard setup and browser checks](docs/DASHBOARD.md).
+Retained rounds can also be exported as self-contained evidence bundles with
+offline verification and Merkle inclusion proofs; see [evidence commands](docs/EVIDENCE.md).
 Independent-domain evidence, usable feed output, and contracts are
 tracked in [the roadmap](docs/ROADMAP.md). The feed endpoint returns an explicit
 unavailable response until consensus exists.

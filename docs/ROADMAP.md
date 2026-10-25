@@ -137,13 +137,22 @@ See [dashboard operation and checks](DASHBOARD.md).
 
 ## Batch 5: evidence and testnet integration
 
-- [ ] Canonical evidence encoding, retention, Merkle trees, inclusion proofs.
+- [x] Canonical evidence encoding, retention, Merkle trees, inclusion proofs.
 - [ ] Domain-bound signed reports and key management/rotation policy.
 - [ ] Oracle/consumer contracts, authorization, expiry, and replay protection tests.
 - [ ] Select testnet, publication cadence, and deployment/runbook.
 - [ ] Repeatable end-to-end manipulation/outage/recovery demonstration.
 
 Gate: every testnet update traces back to retained evidence and a verified report.
+
+The first Batch 5 slice exports a self-contained round evidence bundle, including
+the complete weighting predecessor chain, scoring inputs, and full retained
+dependency evidence. A versioned typed byte codec, domain-separated SHA-256 tree,
+count-bound roots, and inclusion proofs are implemented. Offline verification
+reproduces the pipeline; exports and proof files refuse overwrites. Existing SQL
+evidence is unchanged, and no retention expiry or publication path is added.
+Signed reports, key management, contracts, and testnet work remain pending.
+See [encoding, proof rules, and retention limits](EVIDENCE.md).
 
 ## Later milestones
 
