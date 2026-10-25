@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("serve", "append"))
+    parser.add_argument("--minimum-quality", type=int, default=8001)
     args = parser.parse_args()
     database = Path(os.environ["VERDICT_E2E_DATABASE"]).resolve()
     cache = (ROOT / ".cache" / "browser-tests").resolve()
@@ -50,7 +51,7 @@ def main():
                 store,
                 dataset=dataset,
                 aggregation_report_id=latest["aggregation_report_id"],
-                policy=ConfidencePolicy(minimum_quality_bps=8001),
+                policy=ConfidencePolicy(minimum_quality_bps=args.minimum_quality),
             )
             inserted = store.save_confidence_round(report)
             print(json.dumps({"report_id": report.report_id, "inserted": inserted}))

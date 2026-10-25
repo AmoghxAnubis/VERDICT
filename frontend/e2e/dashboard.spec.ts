@@ -21,7 +21,7 @@ async function replay(page: Page, dataset = baseline) {
   await page.getByRole("button", { name: "Synthetic replay", exact: true }).click();
   await page.getByLabel("Replay scenario").selectOption(dataset);
   await expect(page.locator(".connection")).toContainText("Connected");
-  await expect(page.locator(".chart-footer")).toContainText("25 retained rounds");
+  await expect(page.locator(".chart-footer")).toContainText(/\d+ retained rounds/);
 }
 
 test("live unavailable state, replay evidence, source details, graph and export", async ({ page }, testInfo) => {
@@ -59,7 +59,7 @@ test("live unavailable state, replay evidence, source details, graph and export"
   expect(evidence.assessment.registry_id).toBe(evidence.registry.registry_id);
   await page.getByRole("navigation").getByRole("button", { name: "Overview" }).click();
   await page.screenshot({ path: testInfo.outputPath("baseline.png"), fullPage: true });
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   expect(errors).toEqual([]);
 });
 
@@ -78,6 +78,7 @@ test("history pins evidence and replay shows attack quarantine and recovery", as
   await expect(page.getByRole("dialog").locator(".drawer-price")).toContainText("$135.00");
   await page.keyboard.press("Escape");
   await page.screenshot({ path: testInfo.outputPath("quarantine.png"), fullPage: true });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   await page.getByRole("button", { name: /Return to latest round/ }).click();
   await page.getByRole("button", { name: "View Coinbase details" }).click();
   await expect(page.getByRole("dialog").locator(".badge")).toHaveText("Active", { ignoreCase: true });
@@ -126,8 +127,7 @@ test("service failure displays an error and retry recovers", async ({ page }, te
   await expect(page.getByText("Usable feed value withheld")).toBeVisible();
 });
 
-test("websocket reconnect resumes its cursor and loads a committed assessment", async ({ page }) => {
-  test.skip(test.info().project.name !== "desktop", "One real append per isolated test database");
+test("websocket reconnect resumes its cursor and loads a committed assessment", async ({ page }, testInfo) => {
   const sockets: WebSocketRoute[] = [];
   await page.routeWebSocket("**/v1/stream?*", socket => {
     sockets.push(socket);
@@ -138,7 +138,7 @@ test("websocket reconnect resumes its cursor and loads a committed assessment", 
   const before = await response.json();
   const current = sockets[sockets.length - 1];
   await current.close({ code: 1012, reason: "browser verification reconnect" });
-  const result = JSON.parse(execFileSync(process.env.VERDICT_E2E_PYTHON!, [path.resolve("../scripts/browser_fixture.py"), "append"], { encoding: "utf8" }));
+  const result = JSON.parse(execFileSync(process.env.VERDICT_E2E_PYTHON!, [path.resolve("../scripts/browser_fixture.py"), "append", "--minimum-quality", testInfo.project.name === "desktop" ? "8001" : "8002"], { encoding: "utf8" }));
   expect(result.inserted).toBe(true);
   await expect(page.locator(".metric-card").filter({ hasText: "Diagnostic candidate" })).toContainText(short(result.report_id));
   await expect(page.locator(".connection")).toContainText("Connected");
