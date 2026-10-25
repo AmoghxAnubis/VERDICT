@@ -345,6 +345,24 @@ class ObservationStore:
                 raise SQLAlchemyError("round event head is missing")
             return sequence
 
+    def observations_by_ids(self, identities: Iterable[str], *, dataset: str) -> list[Observation]:
+        identities = set(identities)
+        with self.session() as session:
+            rows = session.scalars(
+                select(ObservationRow).where(
+                    ObservationRow.dataset == dataset, ObservationRow.id.in_(identities)
+                )
+            )
+            results = []
+            for row in rows:
+                observation = Observation.model_validate_json(row.payload)
+                if observation.observation_id != row.id or observation.dataset != dataset:
+                    raise ValueError("stored observation identity mismatch")
+                results.append(observation)
+        if {row.observation_id for row in results} != identities:
+            raise ValueError("retained observations are missing")
+        return results
+
     @staticmethod
     def _confidence_payload(row: ConfidenceRoundRow) -> dict:
         report = ConfidenceReport.model_validate_json(row.payload)

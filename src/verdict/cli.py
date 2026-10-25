@@ -94,6 +94,21 @@ def main() -> None:
             "late_receipt",
         ],
     )
+    evidence = commands.add_parser("evidence", help="Export or verify retained round commitments")
+    evidence_commands = evidence.add_subparsers(dest="evidence_action", required=True)
+    export = evidence_commands.add_parser("export")
+    export.add_argument("assessment_id")
+    export.add_argument("--dataset", default="live")
+    export.add_argument("--output", type=Path, required=True)
+    verify = evidence_commands.add_parser("verify")
+    verify.add_argument("bundle", type=Path)
+    proof = evidence_commands.add_parser("proof")
+    proof.add_argument("bundle", type=Path)
+    proof.add_argument("--index", type=int, required=True)
+    proof.add_argument("--output", type=Path, required=True)
+    verify_proof = evidence_commands.add_parser("verify-proof")
+    verify_proof.add_argument("proof", type=Path)
+    verify_proof.add_argument("--root", required=True, help="Independently obtained evidence root")
     dependencies = commands.add_parser(
         "dependencies", help="Version and inspect dependency evidence"
     )
@@ -119,6 +134,31 @@ def main() -> None:
                 help="Exit unsuccessfully after writing results if held-out targets are unmet",
             )
     args = parser.parse_args()
+    if args.command == "evidence" and args.evidence_action != "export":
+        from verdict.evidence import (
+            EvidenceBundle,
+            InclusionProof,
+            inclusion_proof,
+            verify_bundle,
+            verify_inclusion,
+        )
+
+        if args.evidence_action == "verify-proof":
+            proof = InclusionProof.model_validate_json(args.proof.read_text(encoding="utf-8"))
+            if not verify_inclusion(proof, expected_root=args.root):
+                parser.error("evidence inclusion proof does not match the supplied root")
+            print(json.dumps({"verified": True, "root": args.root}))
+        else:
+            bundle = verify_bundle(
+                EvidenceBundle.model_validate_json(args.bundle.read_text(encoding="utf-8"))
+            )
+            if args.evidence_action == "proof":
+                result = inclusion_proof(bundle, args.index)
+                args.output.parent.mkdir(parents=True, exist_ok=True)
+                with args.output.open("x", encoding="utf-8") as output:
+                    output.write(result.model_dump_json(indent=2) + "\n")
+            print(json.dumps({"verified": True, "root": bundle.root, "leaves": len(bundle.leaves)}))
+        return
     if args.command == "benchmark":
         from verdict.adversarial import evaluate_adversarial
 
@@ -190,6 +230,15 @@ def main() -> None:
         store = ObservationStore(engine) if engine is not None else None
         if store is not None:
             store.check_ready()
+        if args.command == "evidence":
+            from verdict.evidence import build_bundle
+
+            bundle = build_bundle(store, dataset=args.dataset, assessment_id=args.assessment_id)
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            with args.output.open("x", encoding="utf-8") as output:
+                output.write(bundle.model_dump_json(indent=2) + "\n")
+            print(json.dumps({"root": bundle.root, "leaves": len(bundle.leaves)}))
+            return
         if args.command == "demo":
             from verdict.dashboard import seed_demo
 

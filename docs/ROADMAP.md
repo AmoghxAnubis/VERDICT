@@ -118,12 +118,22 @@ See [benchmark methods and results](ADVERSARIAL_BENCHMARKS.md) and the
 
 ## Batch 4: dashboard and live updates
 
-- [ ] Next.js dashboard, source detail, history, alerts, dependency graph.
-- [ ] Round-linked WebSocket updates and reconnect/resume semantics.
-- [ ] Clearly isolated simulation controls.
-- [ ] Browser checks for healthy, degraded, unavailable, and recovery behavior.
+- [x] Next.js dashboard, source detail, history, alerts, dependency graph.
+- [x] Round-linked WebSocket updates and reconnect/resume semantics.
+- [x] Clearly isolated simulation controls.
+- [x] Browser checks for healthy, degraded, unavailable, and recovery behavior.
 
 Gate: the reason behind every accepted/rejected source is visible and reproducible.
+
+Ten production-build browser checks pass on 25 October 2026 using installed Chrome
+on Windows, at desktop and emulated mobile sizes. Real retained replay evidence
+exercises source details, history, dependencies, exports, attack/outage recovery,
+and cursor-based WebSocket reconnects after a separate process commits a round.
+HTTP failure/retry and mobile overflow are covered. The checks found and fixed a
+hidden table label escaping its scroll container. CI now has a separate browser
+workflow; its hosted execution remains unverified locally. This completes the
+diagnostic dashboard gate; publication and real-evidence gates remain open.
+See [dashboard operation and checks](DASHBOARD.md).
 
 ## Batch 5: evidence and testnet integration
 

@@ -36,6 +36,9 @@ them. An empty live dashboard is expected for a replay-only database.
 
 ## Reproducible browser checks
 
+Validated on 25 October 2026: **10 passed** against a production Next.js build,
+using installed Chrome on Windows at desktop and emulated mobile sizes.
+
 With dependencies installed and Chrome available:
 
 ```powershell
