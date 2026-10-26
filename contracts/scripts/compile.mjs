@@ -11,7 +11,7 @@ const settings = {
   viaIR: true,
   evmVersion: "cancun",
   metadata: { bytecodeHash: "none", appendCBOR: false },
-  outputSelection: { "*": { "*": ["abi", "evm.bytecode.object", "evm.deployedBytecode.object"] } },
+  outputSelection: { "*": { "*": ["abi", "evm.bytecode.object", "evm.deployedBytecode.object", "evm.deployedBytecode.immutableReferences"] } },
 };
 const sources = Object.fromEntries(readdirSync(path.join(root, "src"))
   .filter(name => name.endsWith(".sol")).sort()
@@ -38,6 +38,7 @@ for (const name of ["DiagnosticOracle", "FailClosedConsumer"]) {
     contractName: name, compiler: solc.version(), settings, sourceSha256, packageLockSha256,
     abi: contract.abi, bytecode: `0x${contract.evm.bytecode.object}`,
     deployedBytecode: `0x${contract.evm.deployedBytecode.object}`,
+    immutableReferences: contract.evm.deployedBytecode.immutableReferences,
   }, null, 2) + "\n";
   const target = path.join(directory, `${name}.json`);
   if (process.argv.includes("--check")) {

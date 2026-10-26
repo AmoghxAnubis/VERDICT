@@ -316,9 +316,6 @@ def message_from_bundle(bundle, *, policy, registry, key_id, issued_at, valid_un
     issued_at = TypeAdapter(Uint64).validate_python(issued_at)
     records = {(leaf.kind, leaf.record_id): leaf.payload for leaf in bundle.leaves}
     assessment = records["assessment", bundle.assessment_id]
-    aggregation = records["aggregation", assessment["aggregation_report_id"]]
-    weights = records["weighting", aggregation["weighting_report_id"]]
-    score = records["scoring", assessment["scoring_report_id"]]
     observed_at = unix_seconds(datetime.fromisoformat(assessment["cutoff"].replace("Z", "+00:00")))
     if not grant.valid_from <= issued_at < grant.valid_until or (
         grant.revoked_at is not None and issued_at >= grant.revoked_at
@@ -334,7 +331,32 @@ def message_from_bundle(bundle, *, policy, registry, key_id, issued_at, valid_un
     )
     if not observed_at <= issued_at < valid_until <= deadline:
         raise ValueError("evidence is stale or report expiry exceeds policy or signer validity")
-    config = checksum(
+    config = configuration_hash(bundle, policy)
+    return DiagnosticMessage(
+        dataset=policy.dataset,
+        assessment_id=bundle.assessment_id,
+        evidence_root=bundle.root,
+        configuration_hash=config,
+        policy_id=policy.policy_id,
+        key_id=key_id,
+        round_id=observed_at,
+        observed_at=observed_at,
+        issued_at=issued_at,
+        valid_until=valid_until,
+    )
+
+
+def configuration_hash(bundle: EvidenceBundle, policy: ReportPolicy) -> str:
+    """Configuration identity, independent of a report's short-lived signing window.
+
+    Callers must first verify the bundle. This helper does not confer verification.
+    """
+    records = {(leaf.kind, leaf.record_id): leaf.payload for leaf in bundle.leaves}
+    assessment = records["assessment", bundle.assessment_id]
+    aggregation = records["aggregation", assessment["aggregation_report_id"]]
+    weights = records["weighting", aggregation["weighting_report_id"]]
+    score = records["scoring", assessment["scoring_report_id"]]
+    return checksum(
         {
             "signing_policy_id": policy.policy_id,
             "registry_id": assessment["registry_id"],
@@ -353,18 +375,6 @@ def message_from_bundle(bundle, *, policy, registry, key_id, issued_at, valid_un
                 )
             },
         }
-    )
-    return DiagnosticMessage(
-        dataset=policy.dataset,
-        assessment_id=bundle.assessment_id,
-        evidence_root=bundle.root,
-        configuration_hash=config,
-        policy_id=policy.policy_id,
-        key_id=key_id,
-        round_id=observed_at,
-        observed_at=observed_at,
-        issued_at=issued_at,
-        valid_until=valid_until,
     )
 
 

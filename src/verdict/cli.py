@@ -29,6 +29,9 @@ def main() -> None:
     from verdict.signing_cli import add_commands
 
     add_commands(commands)
+    from verdict.testnet_cli import add_commands as add_testnet_commands
+
+    add_testnet_commands(commands)
     db = commands.add_parser("db", help="Apply versioned database migrations")
     db.add_argument("action", choices=["upgrade"])
     serve = commands.add_parser("serve", help="Run the read-only API")
@@ -137,6 +140,11 @@ def main() -> None:
                 help="Exit unsuccessfully after writing results if held-out targets are unmet",
             )
     args = parser.parse_args()
+    if args.command == "testnet":
+        from verdict.testnet_cli import run as run_testnet
+
+        run_testnet(args, parser)
+        return
     if args.command == "signing":
         from verdict.signing_cli import run
 
