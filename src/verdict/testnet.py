@@ -51,7 +51,10 @@ class NetworkProfile(FrozenModel):
     plan_lifetime_seconds: int = Field(default=300, ge=1, le=3600, strict=True)
     maximum_rpc_lag_seconds: int = Field(default=60, ge=1, le=300, strict=True)
     maximum_initial_signers: int = Field(default=8, ge=1, le=8, strict=True)
-    maximum_gas_limit: int = Field(default=8_000_000, ge=21000, le=8_000_000, strict=True)
+    maximum_gas_limit: int = Field(default=8_000_000, ge=21000, le=16_700_000, strict=True)
+    gas_limits: (
+        dict[Operation, Annotated[int, Field(ge=21000, le=16_700_000, strict=True)]] | None
+    ) = Field(default=None, exclude_if=lambda value: value is None)
     maximum_fee_per_gas_wei: POSITIVE = 20_000_000_000
     maximum_priority_fee_per_gas_wei: POSITIVE = 2_000_000_000
     maximum_transaction_cost_wei: POSITIVE = 200_000_000_000_000_000
@@ -72,6 +75,11 @@ class NetworkProfile(FrozenModel):
             raise ValueError("publication cadence, lifetime, and submission margin do not agree")
         if self.maximum_priority_fee_per_gas_wei > self.maximum_fee_per_gas_wei:
             raise ValueError("priority fee exceeds total fee cap")
+        if self.gas_limits is not None and (
+            set(self.gas_limits) != set(DEFAULT_GAS)
+            or any(value > self.maximum_gas_limit for value in self.gas_limits.values())
+        ):
+            raise ValueError("gas limits must cover every operation within the profile ceiling")
         return self
 
     @property
@@ -87,7 +95,7 @@ class UnsignedTransaction(FrozenModel):
     to: Address | None = Field(default=None, exclude_if=lambda value: value is None)
     nonce: int = Field(ge=0, lt=2**64 - 1, strict=True)
     value: Literal[0] = 0
-    gas: int = Field(ge=21000, le=8_000_000, strict=True)
+    gas: int = Field(ge=21000, le=16_700_000, strict=True)
     maxFeePerGas: POSITIVE
     maxPriorityFeePerGas: POSITIVE
     data: HexData
@@ -272,7 +280,7 @@ def _plan(
                 "from": sender,
                 "to": target,
                 "nonce": nonce,
-                "gas": gas if gas is not None else DEFAULT_GAS[operation],
+                "gas": gas if gas is not None else (profile.gas_limits or DEFAULT_GAS)[operation],
                 "maxFeePerGas": max_fee if max_fee is not None else profile.maximum_fee_per_gas_wei,
                 "maxPriorityFeePerGas": priority_fee
                 if priority_fee is not None
