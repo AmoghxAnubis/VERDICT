@@ -154,9 +154,11 @@ the data is explicitly synthetic replay evidence.
 Sepolia selection, a 30-second publication policy, gas budgets, unsigned deployment
 plans, read-only preflight/receipt audits, and a deployment runbook are now
 implemented; see [testnet preparation](TESTNET_RUNBOOK.md). An actual RPC and
-administrator/signer arrangement, wallet handoff, fresh timed replay, retention
-hosting, and public deployment remain pending. A testnet demonstration of
-manipulation, outage, and recovery is still pending. Production
+administrator/signer arrangement, wallet handoff, retention hosting, and public
+deployment remain pending. A [continuous local demonstration](TESTNET_DEMO.md) now
+executes manipulation, outage, and recovery through the full pipeline and eight
+audited transactions; current-clock evidence generation is implemented. The public
+testnet demonstration remains pending. Production
 release additionally requires independent evidence, usable confidence, operational
 key custody, registry distribution, security review, and validation on another
 EVM client. The local test chain uses the experimental
