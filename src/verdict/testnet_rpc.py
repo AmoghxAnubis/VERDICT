@@ -15,7 +15,14 @@ from verdict.contract_artifacts import (
     runtime_matches,
 )
 from verdict.dependencies import checksum
-from verdict.signing import Uint64, address
+from verdict.signing import (
+    DiagnosticMessage,
+    ReportDomain,
+    Uint64,
+    address,
+    report_digest,
+    typed_data,
+)
 from verdict.testnet import NetworkProfile, publication_decision, validate_plan
 
 READ_METHODS = frozenset(
@@ -156,6 +163,30 @@ def oracle_context(rpc, profile, target, tag, *, owner=None):
         raise ValueError("oracle EIP-712 domain mismatch")
     if owner and address(call(rpc, artifact, target, "owner", {}, tag)[0]) != owner:
         raise ValueError("oracle administrator differs from the reviewed plan")
+    # EIP-712 also caches immutable hashes. Getter checks alone cannot attest those bytes.
+    expected_domain = ReportDomain(chain_id=profile.chain_id, verifying_contract=target)
+    probe = DiagnosticMessage(
+        dataset=profile.dataset,
+        assessment_id="11" * 32,
+        evidence_root="22" * 32,
+        configuration_hash="33" * 32,
+        policy_id="44" * 32,
+        key_id="domain-probe",
+        round_id=1,
+        observed_at=1,
+        issued_at=1,
+        valid_until=2,
+    )
+    actual = call(
+        rpc,
+        artifact,
+        target,
+        "hashReport",
+        {"report": typed_data(expected_domain, probe)["message"]},
+        tag,
+    )[0]
+    if actual.hex() != report_digest(expected_domain, probe):
+        raise ValueError("oracle cached EIP-712 domain/digest mismatch")
     return artifact
 
 

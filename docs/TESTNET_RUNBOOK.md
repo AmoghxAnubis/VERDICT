@@ -147,7 +147,8 @@ Receipt auditing compares actual transaction fields with the reviewed plan and
 checks execution status, canonical inclusion, gas used, the predicted deployment
 address, runtime template, and constructor getters. Immutable bytecode locations
 are masked only for template comparison; domain/dataset/owner or consumer getters
-are checked separately. Initialization and publication require their exact
+are checked separately. A known report digest is also reproduced independently
+to check cached EIP-712 immutables. Initialization and publication require their exact
 `RegistryApplied` or `DiagnosticAccepted` event, including report commitments.
 
 Statuses are `not-found`, `pending`, `reverted`, `included`, `confirmed`, or

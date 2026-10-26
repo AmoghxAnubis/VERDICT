@@ -151,10 +151,12 @@ event, latest diagnostic, and consumer rejection. No production key or real fund
 are used. Test timestamps are frozen in 2030 to avoid host-clock-dependent mining;
 the data is explicitly synthetic replay evidence.
 
-Public testnet selection, an RPC and administrator/signer arrangement, fresh-round
-scheduling, publication cadence, gas budgets, retention hosting, and a deployment
-runbook are the next roadmap step. There has been no public deployment. A testnet
-demonstration of manipulation, outage, and recovery is still pending. Production
+Sepolia selection, a 30-second publication policy, gas budgets, unsigned deployment
+plans, read-only preflight/receipt audits, and a deployment runbook are now
+implemented; see [testnet preparation](TESTNET_RUNBOOK.md). An actual RPC and
+administrator/signer arrangement, wallet handoff, fresh timed replay, retention
+hosting, and public deployment remain pending. A testnet demonstration of
+manipulation, outage, and recovery is still pending. Production
 release additionally requires independent evidence, usable confidence, operational
 key custody, registry distribution, security review, and validation on another
 EVM client. The local test chain uses the experimental
@@ -179,4 +181,6 @@ and the Cancun target. Source line endings are normalized. Committed artifacts
 carry source/lockfile fingerprints; CI recompiles and rejects any drift. Runtime
 bytecode is 9,383 bytes for the oracle and 1,457 for the consumer. The maximum
 registry snapshot fits the tested 25-million-gas initialization budget on a
-30-million-gas local block; public-chain costs remain unverified.
+30-million-gas local block. This is not a supported public gas budget: the Sepolia
+profile limits initial snapshots to eight entries and transactions to eight
+million gas; public-chain costs remain unverified.

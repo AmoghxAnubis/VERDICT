@@ -31,4 +31,7 @@ Hosted CI is configured to rebuild/check artifacts before running the Python sui
 its execution has not been observed during this local validation.
 
 See [contract behavior, input exports, and operational limits](../docs/CONTRACTS.md).
-Public testnet selection, deployment, and the testnet demonstration remain pending.
+See [Sepolia plans, read-only verification, and deployment runbook](../docs/TESTNET_RUNBOOK.md).
+Public deployment and the testnet demonstration remain pending. The public profile
+limits initial snapshots to eight entries and transactions to eight million gas;
+the 128-key local gas test does not establish a public-chain budget.

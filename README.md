@@ -19,6 +19,8 @@ An [offline signing workflow](docs/SIGNING.md) adds EIP-712 diagnostic reports,
 encrypted development keys, and public signer rotation/revocation registries.
 Local [oracle/consumer contracts](docs/CONTRACTS.md) verify the same signatures,
 enforce authorization/expiry/replay protection, and keep unusable output withheld.
+The [Sepolia preparation tools](docs/TESTNET_RUNBOOK.md) add pinned deployment plans,
+read-only preflight, and receipt audits; public wallet deployment remains pending.
 Independent-domain evidence, usable feed output, and public deployment are
 tracked in [the roadmap](docs/ROADMAP.md). The feed endpoint returns an explicit
 unavailable response until consensus exists.

@@ -140,7 +140,7 @@ See [dashboard operation and checks](DASHBOARD.md).
 - [x] Canonical evidence encoding, retention, Merkle trees, inclusion proofs.
 - [x] Domain-bound signed reports and key management/rotation policy.
 - [x] Oracle/consumer contracts, authorization, expiry, and replay protection tests.
-- [ ] Select testnet, publication cadence, and deployment/runbook.
+- [x] Select testnet, publication cadence, and deployment/runbook preparation.
 - [ ] Repeatable end-to-end manipulation/outage/recovery demonstration.
 
 Gate: every testnet update traces back to retained evidence and a verified report.
@@ -177,6 +177,18 @@ the full 587-test suite pass, with six optional PostgreSQL/Redis checks skipped.
 Compiler artifacts reproduce from pinned sources. Public deployment and the
 testnet manipulation/outage/recovery demonstration remain pending. See
 [contracts and verified ABI exports](CONTRACTS.md).
+
+Sepolia is selected with a separate replay dataset, a 30-second publication
+cadence, 120-second diagnostic transport bounds, and a 45-second submission
+margin. A pinned profile, checksum-bound unsigned type-2 transaction plans,
+read-only network/state/simulation preflight, and exact transaction/receipt/event
+audits are implemented. Gas/fee budgets, an eight-entry initial registry limit,
+wallet handoff, confirmations/finality, nonce/reorganization recovery, and retained
+artifacts are documented in the [testnet runbook](TESTNET_RUNBOOK.md). No automatic
+publisher or broadcaster is added. Public RPC compatibility, wallet execution,
+deployment hashes, and the timed manipulation/outage/recovery demonstration remain
+unverified and belong to the next gate. Local preparation does not enable usable
+feed publication.
 
 ## Later milestones
 

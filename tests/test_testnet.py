@@ -571,6 +571,26 @@ def test_runtime_template_does_not_replace_immutable_domain_checks(chain, bundle
         chain.preflight(plan)
 
 
+def test_cached_eip712_digest_is_checked_in_addition_to_getters(chain, bundles, monkeypatch):
+    from verdict.contract_artifacts import encode_arguments
+
+    chain.configured(bundles[0])
+    plan = chain.publish(bundles[0])
+    original = chain.rpc.request
+    selector = encode_arguments(
+        load_artifact("DiagnosticOracle"), "hashReport", {"report": plan.arguments["report"]}
+    )[:10]
+
+    def request(method, params):
+        if method == "eth_call" and params[0]["data"].startswith(selector):
+            return "0x" + "00" * 32
+        return original(method, params)
+
+    monkeypatch.setattr(chain.rpc, "request", request)
+    with pytest.raises(ValueError, match="cached EIP-712"):
+        chain.preflight(plan)
+
+
 def test_cadence_rejects_invalid_clock_types():
     with pytest.raises(ValueError):
         publication_decision(profile(), now=True, cutoff=120, last_round=90)
