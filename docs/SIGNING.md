@@ -158,6 +158,13 @@ administration procedure once contracts exist.
 
 ## Key custody and validation
 
+Validated on 26 October 2026: **33 focused signing tests pass**. The full backend
+regression suite passes **528 tests**, with six optional PostgreSQL/Redis checks
+skipped and one existing FastAPI test-client deprecation warning. Ruff lint and
+formatting checks pass. The dependency lockfile validates and a frozen offline
+sync succeeds. No frontend code changed in this slice; the prior ten browser
+checks remain recorded in [dashboard validation](DASHBOARD.md).
+
 Development keystores use Ethereum Secret Storage v3 with scrypt `N=262144`, `r=8`,
 `p=1`, `dklen=32`, and AES-128-CTR through
 [`eth-account`](https://eth-account.readthedocs.io/en/v0.13.5/eth_account.html).

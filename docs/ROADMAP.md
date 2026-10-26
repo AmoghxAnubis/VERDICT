@@ -163,6 +163,10 @@ development keystores and an offline CLI are implemented. Production key custody
 administrative registry distribution, stateful replay protection, contracts, and
 testnet deployment remain separate gates. See [signing and rotation](SIGNING.md).
 
+On 26 October 2026, 33 focused signing checks and the full 528-test backend
+regression suite pass locally; six optional PostgreSQL/Redis checks are skipped.
+An independent Solidity ABI encoding agrees with the signed EIP-712 digest.
+
 ## Later milestones
 
 BTC/USD; operational hardening and observability; independently operated nodes;
