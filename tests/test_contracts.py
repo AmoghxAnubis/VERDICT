@@ -255,12 +255,15 @@ class Scenario:
         assert self.tester.get_block_by_number("latest")["timestamp"] == timestamp
 
     def apply(self, registry):
+        projection = registry_inputs(
+            policy=self.policy, registry=registry, expected_registry_id=registry.registry_id
+        )
         return self.oracle.tx(
             "applyRegistry",
-            "0x" + registry.previous_registry_id,
-            "0x" + registry.registry_id,
-            registry.revision,
-            registry_grants(registry),
+            projection["previous_registry_id"],
+            projection["registry_id"],
+            projection["registry_revision"],
+            projection["grants"],
         )
 
 
@@ -371,3 +374,371 @@ def test_expired_stored_diagnostics_never_become_consumer_prices(scenario):
     assert not s.oracle.call("latestDiagnostic")[-1]
     assert s.consumer.call("canAct") == (False,)
     s.consumer.rejects("readPrice", error="FeedUnavailable()")
+
+
+@pytest.mark.parametrize("kind", ["foreign", "short", "high-s", "bad-v", "zero"])
+def test_signature_authentication_and_canonical_encoding(scenario, kind):
+    s = scenario
+    s.initialize()
+    s.warp(OBSERVED + 2)
+    raw = bytes.fromhex(s.signature[2:])
+    if kind == "foreign":
+        raw = bytes(SECOND.sign_message(signable(s.policy.domain, s.signed.message)).signature)
+    elif kind == "short":
+        raw = b"short"
+    elif kind == "high-s":
+        raw = (
+            raw[:32]
+            + (SECP256K1_N - int.from_bytes(raw[32:64], "big")).to_bytes(32, "big")
+            + bytes([55 - raw[64]])
+        )
+    elif kind == "bad-v":
+        raw = raw[:64] + b"\x00"
+    else:
+        raw = b"\x00" * 64 + b"\x1b"
+    s.oracle.rejects("submit", s.report, "0x" + raw.hex())
+    assert s.oracle.call("lastRound") == (0,)
+
+
+@pytest.mark.parametrize("changed", ["chain", "contract", "evidenceRoot", "assessmentId"])
+def test_signatures_cannot_cross_domains_or_committed_evidence(scenario, changed):
+    s = scenario
+    s.initialize()
+    s.warp(OBSERVED + 2)
+    domain, report = s.policy.domain, s.report
+    if changed == "chain":
+        domain = domain.model_copy(update={"chain_id": domain.chain_id + 1})
+    elif changed == "contract":
+        clone = Contract(s.tester, "DiagnosticOracle", (s.owner, keccak(text=DATASET)))
+        domain = domain.model_copy(update={"verifying_contract": clone.address})
+    else:
+        report = {**s.report, changed: "0x" + "f" * 64}
+    signature = s.signature
+    if changed in ("chain", "contract"):
+        assert report_digest(domain, s.signed.message) != s.signed.digest
+        signature = (
+            "0x" + bytes(FIRST.sign_message(signable(domain, s.signed.message)).signature).hex()
+        )
+    s.oracle.rejects("submit", report, signature, error="UnauthorizedSigner()")
+
+
+@pytest.mark.parametrize("ttl,age", [(5, 30), (30, 5)])
+def test_onchain_time_limits_cannot_be_extended_by_the_publisher(scenario, ttl, age):
+    s = scenario
+    p = s.payload
+    s.oracle.tx(
+        "initialize",
+        p["policy_id"],
+        p["configuration_hash"],
+        ttl,
+        age,
+        p["registry_id"],
+        p["grants"],
+    )
+    s.warp(OBSERVED + 2)
+    s.oracle.rejects("submit", s.report, s.signature, error="InvalidTimes()")
+
+
+def test_administration_uses_two_step_ownership_and_no_renunciation(scenario):
+    s = scenario
+    p = s.payload
+    initialization = (
+        p["policy_id"],
+        p["configuration_hash"],
+        30,
+        30,
+        p["registry_id"],
+        p["grants"],
+    )
+    s.oracle.rejects(
+        "initialize",
+        *initialization,
+        sender=s.attacker,
+        error="OwnableUnauthorizedAccount(address)",
+    )
+    s.initialize()
+    s.oracle.rejects("initialize", *initialization, error="AlreadyInitialized()")
+    s.oracle.rejects(
+        "revokeSigner",
+        s.report["keyId"],
+        sender=s.attacker,
+        error="OwnableUnauthorizedAccount(address)",
+    )
+    s.oracle.rejects(
+        "applyRegistry",
+        p["registry_id"],
+        "0x" + "a" * 64,
+        2,
+        p["grants"],
+        sender=s.attacker,
+        error="OwnableUnauthorizedAccount(address)",
+    )
+    s.oracle.tx("transferOwnership", s.relayer)
+    assert to_checksum_address(s.oracle.call("owner")[0]) == s.owner
+    s.oracle.rejects(
+        "acceptOwnership", sender=s.attacker, error="OwnableUnauthorizedAccount(address)"
+    )
+    s.oracle.tx("acceptOwnership", sender=s.relayer)
+    assert to_checksum_address(s.oracle.call("owner")[0]) == s.relayer
+    s.oracle.rejects("revokeSigner", s.report["keyId"], error="OwnableUnauthorizedAccount(address)")
+    s.oracle.tx("revokeSigner", s.report["keyId"], sender=s.relayer)
+    s.oracle.rejects("renounceOwnership", sender=s.relayer, error="RenunciationDisabled()")
+
+
+def test_rotation_activation_retirement_and_replay_across_registry_versions(scenario):
+    s = scenario
+    s.initialize()
+    rotated = rotate_registry(
+        s.registry,
+        old_key_id="first",
+        new_key_id="second",
+        new_signer=SECOND.address,
+        activate_at=OBSERVED + 5,
+        retire_at=OBSERVED + 30,
+        valid_until=OBSERVED + 3600,
+    )
+    s.apply(rotated)
+    assert s.oracle.call("registryRevision") == (2,)
+    s.warp(OBSERVED + 4)
+    # Properly signed malicious early use of the next key, bypassing SDK authorization checks.
+    data = typed_data(s.policy.domain, s.signed.message)
+    data["message"] = {
+        **s.report,
+        "keyId": "0x" + keccak(text="second").hex(),
+        "issuedAt": OBSERVED + 4,
+    }
+    signature = "0x" + bytes(SECOND.sign_typed_data(full_message=data).signature).hex()
+    s.oracle.rejects("submit", data["message"], signature, error="SignerInactive()")
+    new = s.sign(registry=rotated, key_id="second", account=SECOND, issued_at=OBSERVED + 5)
+    s.warp(OBSERVED + 5)
+    s.oracle.call("submit", s.report, s.signature)  # Old key is still authorized during overlap.
+    new_report = typed_data(new.domain, new.message)["message"]
+    s.oracle.tx("submit", new_report, new.signature, sender=s.relayer)
+    s.oracle.rejects("submit", s.report, s.signature, error="ReplayedReport()")
+    s.warp(OBSERVED + 31)
+    stale_registry_report = s.sign(bundle=s.bundles[1], issued_at=OBSERVED + 31)
+    s.oracle.rejects(
+        "submit",
+        typed_data(stale_registry_report.domain, stale_registry_report.message)["message"],
+        stale_registry_report.signature,
+        error="SignerInactive()",
+    )
+
+
+def test_registry_revocation_boundary_rejects_previously_issued_reports(scenario):
+    s = scenario
+    s.initialize()
+    revoked = revoke_registry(s.registry, key_id="first", at=OBSERVED + 4)
+    s.apply(revoked)
+    s.warp(OBSERVED + 1)
+    s.oracle.tx("submit", s.report, s.signature)
+    assert s.oracle.call("latestDiagnostic")[-1]
+    s.warp(OBSERVED + 4)
+    assert not s.oracle.call("latestDiagnostic")[-1]
+    s.oracle.rejects("submit", s.report, s.signature, error="SignerInactive()")
+    s.oracle.rejects(
+        "applyRegistry",
+        "0x" + revoked.registry_id,
+        "0x" + "a" * 64,
+        3,
+        registry_grants(s.registry),
+        error="AuthorizationExtended()",
+    )
+
+
+def test_zero_time_revocation_is_distinct_from_no_revocation(scenario):
+    s = scenario
+    s.initialize()
+    revoked = revoke_registry(s.registry, key_id="first", at=0)
+    projection = registry_inputs(
+        policy=s.policy, registry=revoked, expected_registry_id=revoked.registry_id
+    )
+    assert projection["grants"][0]["revoked"] and projection["grants"][0]["revokedAt"] == 0
+    s.apply(revoked)
+    s.warp(OBSERVED + 1)
+    s.oracle.rejects("submit", s.report, s.signature, error="SignerInactive()")
+
+
+def test_emergency_revocation_persists_across_registry_updates(scenario):
+    s = scenario
+    s.initialize()
+    s.warp(OBSERVED + 1)
+    s.oracle.tx("submit", s.report, s.signature)
+    s.oracle.tx("revokeSigner", s.report["keyId"])
+    at, active = s.oracle.call("emergencyRevocations", s.report["keyId"])
+    assert active and at == OBSERVED + 3
+    assert not s.oracle.call("latestDiagnostic")[-1]
+    rotated = rotate_registry(
+        s.registry,
+        old_key_id="first",
+        new_key_id="second",
+        new_signer=SECOND.address,
+        activate_at=OBSERVED + 5,
+        retire_at=OBSERVED + 30,
+        valid_until=OBSERVED + 3600,
+    )
+    s.apply(rotated)
+    s.oracle.tx("revokeSigner", s.report["keyId"])
+    assert s.oracle.call("emergencyRevocations", s.report["keyId"]) == (at, True)
+    s.oracle.rejects("submit", s.report, s.signature, error="SignerInactive()")
+    assert s.consumer.call("canAct") == (False,)
+
+
+@pytest.mark.parametrize(
+    "kind",
+    [
+        "predecessor",
+        "revision",
+        "reused-id",
+        "empty",
+        "duplicate",
+        "oversized",
+        "address-reuse",
+        "reassign",
+        "activation",
+        "extend",
+        "window",
+        "revocation-shape",
+        "remove-old",
+    ],
+)
+def test_invalid_registry_successors_are_rejected(scenario, kind):
+    s = scenario
+    s.initialize()
+    previous, new_id, revision = s.payload["registry_id"], "0x" + "a" * 64, 2
+    entries = [dict(entry) for entry in s.payload["grants"]]
+    if kind == "predecessor":
+        previous = "0x" + "0" * 64
+    elif kind == "revision":
+        revision = 4
+    elif kind == "reused-id":
+        new_id = previous
+    elif kind == "empty":
+        entries = []
+    elif kind == "duplicate":
+        entries *= 2
+    elif kind == "oversized":
+        entries *= 129
+    elif kind == "address-reuse":
+        entries.append({**entries[0], "keyId": "0x" + "b" * 64})
+    elif kind == "reassign":
+        entries[0]["signer"] = SECOND.address
+    elif kind == "activation":
+        entries[0]["validFrom"] += 1
+    elif kind == "extend":
+        entries[0]["validUntil"] += 1
+    elif kind == "window":
+        entries[0]["validUntil"] = entries[0]["validFrom"]
+    elif kind == "revocation-shape":
+        entries[0]["revokedAt"] = OBSERVED
+    else:
+        entries = [{**entries[0], "keyId": "0x" + "b" * 64, "signer": SECOND.address}]
+    entries.sort(key=lambda item: item["keyId"])
+    s.oracle.rejects("applyRegistry", previous, new_id, revision, entries)
+    assert s.oracle.call("registryId")[0].hex() == s.registry.registry_id
+    assert s.oracle.call("registryRevision") == (1,)
+
+
+def test_failed_registry_and_report_transactions_roll_back_all_effects(scenario):
+    s = scenario
+    s.initialize()
+    original = s.payload["grants"][0]
+    new_key = next(
+        "0x" + keccak(text=f"next-{i}").hex()
+        for i in range(100)
+        if keccak(text=f"next-{i}").hex() < original["keyId"][2:]
+    )
+    entries = [
+        {**original, "keyId": new_key, "signer": SECOND.address},
+        {**original, "validUntil": original["validUntil"] + 1},
+    ]
+    failed_id = "0x" + "a" * 64
+    s.oracle.tx("applyRegistry", s.payload["registry_id"], failed_id, 2, entries, succeeds=False)
+    assert s.oracle.call("grants", new_key)[0] == b"\x00" * 32
+    assert s.oracle.call("usedRegistryIds", failed_id) == (False,)
+    assert s.oracle.call("registryRevision") == (1,)
+    s.warp(OBSERVED + 1)
+    s.oracle.tx("submit", {**s.report, "value": 100}, s.signature, succeeds=False)
+    assert s.oracle.call("lastRound") == (0,)
+    assert s.oracle.call("usedAssessmentIds", s.report["assessmentId"]) == (False,)
+    s.oracle.tx("submit", s.report, s.signature)
+    assert s.oracle.call("lastRound") == (OBSERVED,)
+
+
+def test_contract_input_cli_is_offline_and_preserves_revoked_registry_export(
+    scenario, tmp_path, monkeypatch, capsys
+):
+    from verdict.cli import main
+
+    s = scenario
+    files = {
+        name: tmp_path / f"{name}.json"
+        for name in (
+            "report",
+            "policy",
+            "registry",
+            "bundle",
+            "output",
+            "revoked",
+            "registry-output",
+        )
+    }
+    for name, model in (
+        ("report", s.signed),
+        ("policy", s.policy),
+        ("registry", s.registry),
+        ("bundle", s.bundles[0]),
+    ):
+        write_new_json(files[name], model.model_dump(mode="json"))
+    monkeypatch.setattr(
+        "verdict.cli.build_engine", lambda *args: pytest.fail("ABI export accessed SQL")
+    )
+    arguments = [
+        "verdict",
+        "signing",
+        "contract-input",
+        "--report",
+        str(files["report"]),
+        "--policy",
+        str(files["policy"]),
+        "--registry",
+        str(files["registry"]),
+        "--bundle",
+        str(files["bundle"]),
+        "--registry-id",
+        s.registry.registry_id,
+        "--at",
+        datetime.fromtimestamp(OBSERVED + 1, UTC).isoformat(),
+        "--output",
+        str(files["output"]),
+    ]
+    monkeypatch.setattr("sys.argv", arguments)
+    main()
+    capsys.readouterr()
+    value = json.loads(files["output"].read_text())
+    assert value["digest"] == "0x" + s.signed.digest
+    assert value["report"] == s.report
+    with pytest.raises(SystemExit):
+        main()
+    revoked = revoke_registry(s.registry, key_id="first", at=0)
+    write_new_json(files["revoked"], revoked.model_dump(mode="json"))
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "verdict",
+            "signing",
+            "registry-input",
+            "--policy",
+            str(files["policy"]),
+            "--registry",
+            str(files["revoked"]),
+            "--registry-id",
+            revoked.registry_id,
+            "--output",
+            str(files["registry-output"]),
+        ],
+    )
+    main()
+    assert json.loads(files["registry-output"].read_text())["grants"][0]["revoked"]
+    with pytest.raises(ValueError, match="trusted registry"):
+        registry_inputs(policy=s.policy, registry=s.registry, expected_registry_id="0" * 64)
