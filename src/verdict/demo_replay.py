@@ -151,6 +151,7 @@ def summarize(bundle):
 
 def retain_replay(directory, profile, *, start, until, checkpoints):
     """Create a dedicated migrated SQLite database; never read/write the configured app DB."""
+    profile = NetworkProfile.model_validate(profile)
     spec = session_spec(profile, start)
     requested = tuple(checkpoints)
     if (
@@ -215,6 +216,7 @@ def retain_replay(directory, profile, *, start, until, checkpoints):
 
 def export_evidence(directory, profile, *, start, now):
     """Fresh public-session snapshot. No signing, network calls, or clock override in CLI."""
+    profile = NetworkProfile.model_validate(profile)
     now = TypeAdapter(Uint64).validate_python(now)
     cutoff = now - now % 30
     bundle = retain_replay(
