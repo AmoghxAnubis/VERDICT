@@ -26,6 +26,9 @@ from verdict.weighting import WeightingPolicy
 def main() -> None:
     parser = argparse.ArgumentParser(prog="verdict")
     commands = parser.add_subparsers(dest="command", required=True)
+    from verdict.signing_cli import add_commands
+
+    add_commands(commands)
     db = commands.add_parser("db", help="Apply versioned database migrations")
     db.add_argument("action", choices=["upgrade"])
     serve = commands.add_parser("serve", help="Run the read-only API")
@@ -134,6 +137,11 @@ def main() -> None:
                 help="Exit unsuccessfully after writing results if held-out targets are unmet",
             )
     args = parser.parse_args()
+    if args.command == "signing":
+        from verdict.signing_cli import run
+
+        run(args, parser)
+        return
     if args.command == "evidence" and args.evidence_action != "export":
         from verdict.evidence import (
             EvidenceBundle,
