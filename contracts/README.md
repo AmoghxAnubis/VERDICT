@@ -32,6 +32,8 @@ its execution has not been observed during this local validation.
 
 See [contract behavior, input exports, and operational limits](../docs/CONTRACTS.md).
 See [Sepolia plans, read-only verification, and deployment runbook](../docs/TESTNET_RUNBOOK.md).
-Public deployment and the testnet demonstration remain pending. The public profile
+The [continuous local demonstration](../docs/TESTNET_DEMO.md) executes eight audited
+transactions across manipulation, outage, and recovery. Public deployment and
+the public testnet demonstration remain pending. The public profile
 limits initial snapshots to eight entries and transactions to eight million gas;
 the 128-key local gas test does not establish a public-chain budget.
