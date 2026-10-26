@@ -21,6 +21,8 @@ Local [oracle/consumer contracts](docs/CONTRACTS.md) verify the same signatures,
 enforce authorization/expiry/replay protection, and keep unusable output withheld.
 The [Sepolia preparation tools](docs/TESTNET_RUNBOOK.md) add pinned deployment plans,
 read-only preflight, and receipt audits; public wallet deployment remains pending.
+The [repeatable local demonstration](docs/TESTNET_DEMO.md) retains manipulation,
+outage, and recovery evidence through signatures, contract execution, and audited receipts.
 Independent-domain evidence, usable feed output, and public deployment are
 tracked in [the roadmap](docs/ROADMAP.md). The feed endpoint returns an explicit
 unavailable response until consensus exists.
