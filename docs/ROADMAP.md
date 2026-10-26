@@ -138,7 +138,7 @@ See [dashboard operation and checks](DASHBOARD.md).
 ## Batch 5: evidence and testnet integration
 
 - [x] Canonical evidence encoding, retention, Merkle trees, inclusion proofs.
-- [ ] Domain-bound signed reports and key management/rotation policy.
+- [x] Domain-bound signed reports and key management/rotation policy.
 - [ ] Oracle/consumer contracts, authorization, expiry, and replay protection tests.
 - [ ] Select testnet, publication cadence, and deployment/runbook.
 - [ ] Repeatable end-to-end manipulation/outage/recovery demonstration.
@@ -151,8 +151,17 @@ dependency evidence. A versioned typed byte codec, domain-separated SHA-256 tree
 count-bound roots, and inclusion proofs are implemented. Offline verification
 reproduces the pipeline; exports and proof files refuse overwrites. Existing SQL
 evidence is unchanged, and no retention expiry or publication path is added.
-Signed reports, key management, contracts, and testnet work remain pending.
+Contracts and testnet work remain pending.
 See [encoding, proof rules, and retention limits](EVIDENCE.md).
+
+Offline EIP-712 diagnostic reports now bind the domain, dataset, evidence root,
+retained configuration, observation/issuance/expiry times, round, and signer ID.
+V1 preserves unavailable/null output. Public signer registry successors support
+bounded rotation overlap and verification-time revocation, with independently
+pinned registry hashes and no resurrection of retired identities. Encrypted local
+development keystores and an offline CLI are implemented. Production key custody,
+administrative registry distribution, stateful replay protection, contracts, and
+testnet deployment remain separate gates. See [signing and rotation](SIGNING.md).
 
 ## Later milestones
 

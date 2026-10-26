@@ -44,7 +44,7 @@ Missing predecessor state, changed raw observations, unrelated records, and
 cross-dataset substitution fail verification, even if an attacker recomputes the
 bundle's root. A proof alone verifies inclusion; it does not reproduce the pipeline.
 Use a root obtained independently of the proof when verifying inclusion. Signed
-roots and authorization are the next milestone.
+roots and authorization are available through the [offline signing workflow](SIGNING.md).
 
 V1 limits bundles to 32,768 leaves, 512 weighting predecessors, and 128 levels of
 JSON nesting. Bounds fail explicitly. Long-running datasets exceeding these limits
@@ -130,5 +130,6 @@ reopened database connections and changed caller decimal precision. CLI checks
 cover exports, offline verification, proof generation, independent root checking,
 and refusal to overwrite existing artifacts.
 
-Signing, keys and rotation, cross-language implementations, contracts, hosting and
+Offline signing and local development key rotation are implemented separately.
+Production key custody, cross-language implementations, contracts, hosting and
 backup guarantees, and testnet deployment remain separate release gates.
