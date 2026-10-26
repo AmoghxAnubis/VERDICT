@@ -4,8 +4,9 @@ The selected application testnet is **Sepolia**, chain ID **11155111**. The chec
 [profile](../contracts/networks/sepolia-v1.json), unsigned transaction planner,
 read-only RPC preflight, and receipt auditor are implemented. No public contract
 has been deployed or verified. A funded testnet transaction sender, administrator,
-RPC endpoint, approved wallet workflow, and freshly timed replay demonstration
-are still needed before public rollout. There is no automatic publisher here.
+RPC endpoint, approved wallet workflow, and public execution of the timed replay
+are still needed before rollout. The [local demonstration and fresh evidence
+generator](TESTNET_DEMO.md) are implemented. There is no automatic publisher here.
 
 Ethereum recommends Sepolia for application development; Hoodi targets protocol
 and validator testing. The profile pins the chain ID and genesis hash published
@@ -84,8 +85,9 @@ deployment approval.
 Use separate administrator and report-signing keys. The administrator controls
 registry updates and emergency stops; the report key signs EIP-712 diagnostics.
 The planner rejects an initial registry containing the administrator's address.
-Transaction senders use their own wallet custody. The CLI never asks for a
-transaction private key, unlocks an RPC account, signs a transaction, or broadcasts.
+Transaction senders use their own wallet custody. Public-network commands never
+ask for a transaction private key, unlock an RPC account, sign a transaction, or
+broadcast. `demo-local` executes fake accounts only inside its new in-memory EVM.
 Existing [encrypted report-signing keystores](SIGNING.md) remain separate.
 
 The read-only commands load an HTTPS endpoint from `VERDICT_SEPOLIA_RPC_URL` in the
@@ -193,11 +195,12 @@ and owner wallet actions through the ABI; these plan commands do not implement
 administrative registry transactions.
 
 For publication, use a freshly retained, verified assessment in the profile's
-dataset and at a cutoff divisible by 30. The forthcoming end-to-end demonstration
-must generate and retain those rounds against the actual session clock. Existing
+dataset and at a cutoff divisible by 30. `testnet demo-evidence` generates and
+retains those rounds against the actual session clock; see the
+[continuous session workflow](TESTNET_DEMO.md). Existing
 historical benchmark bundles have different datasets/times and cannot simply be
-relabelled or sent to this profile. Generating this new timed replay is the next
-roadmap item, not a capability claimed by this runbook.
+relabelled or sent to this profile. Local execution is complete; repeating the
+session through an approved public wallet remains pending.
 
 Sign the fresh bundle with the approved report key using current time (omit
 `--issued-at`), then build the unsigned submission:
@@ -255,5 +258,7 @@ failures, reorganizations, altered transactions, and reverted/pending receipts.
 
 This proves local tooling behavior, not public Sepolia deployment, live provider
 compatibility, public gas costs, wallet handoff, or an end-to-end public recovery
-demonstration. Those results must be recorded with actual public transaction hashes
-in the next phase. Usable feed publication remains a separate evidence/release gate.
+demonstration. The local [five-phase demo](TESTNET_DEMO.md) adds archived end-to-end
+execution and fresh evidence generation. Public results must still be recorded
+with actual transaction hashes. Usable feed publication remains a separate
+evidence/release gate.
