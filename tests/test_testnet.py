@@ -512,6 +512,115 @@ def test_receipt_pending_and_not_found_are_not_confirmations(chain, monkeypatch)
     assert chain.audit(plan, tx_hash)["status"] == "pending"
 
 
+def test_reverted_receipt_is_never_verified(chain, bundles):
+    chain.configured(bundles[0])
+    # A wallet bypassing preflight can still mine a failing transaction. Audit must report it.
+    repeated = initialization_plan(
+        chain.profile,
+        sender=chain.admin,
+        nonce=1,
+        oracle=chain.oracle,
+        bundle=bundles[0],
+        policy=chain.policy,
+        registry=chain.registry,
+        expected_registry_id=chain.registry.registry_id,
+        now=chain.now,
+    )
+    with pytest.raises(ValueError, match="already initialized"):
+        chain.preflight(repeated)
+    tx_hash = chain.rpc.send_in_test(repeated)
+    result = chain.audit(repeated, tx_hash)
+    assert result["status"] == "reverted"
+    assert result["verified"] is False
+
+
+def test_nonce_is_checked_again_after_simulation(chain, monkeypatch):
+    plan = chain.deploy()
+    original = chain.rpc.request
+    estimated = False
+
+    def request(method, params):
+        nonlocal estimated
+        value = original(method, params)
+        if method == "eth_estimateGas":
+            estimated = True
+        if estimated and method == "eth_getTransactionCount" and params[1] == "pending":
+            return "0x1"
+        return value
+
+    monkeypatch.setattr(chain.rpc, "request", request)
+    with pytest.raises(ValueError, match="nonce changed"):
+        chain.preflight(plan)
+
+
+def test_runtime_template_does_not_replace_immutable_domain_checks(chain, bundles, monkeypatch):
+    from verdict.contract_artifacts import encode_arguments
+
+    chain.configured(bundles[0])
+    plan = chain.publish(bundles[0])
+    original = chain.rpc.request
+    selector = encode_arguments(load_artifact("DiagnosticOracle"), "datasetId", {})
+
+    def request(method, params):
+        if method == "eth_call" and params[0]["data"] == selector:
+            return "0x" + "00" * 32
+        return original(method, params)
+
+    monkeypatch.setattr(chain.rpc, "request", request)
+    with pytest.raises(ValueError, match="dataset"):
+        chain.preflight(plan)
+
+
+def test_cadence_rejects_invalid_clock_types():
+    with pytest.raises(ValueError):
+        publication_decision(profile(), now=True, cutoff=120, last_round=90)
+
+
+@pytest.mark.parametrize("status", [302, 403, 429, 503])
+def test_http_failures_and_redirects_hide_rpc_urls(status):
+    with httpx.Client(
+        transport=httpx.MockTransport(
+            lambda r: httpx.Response(
+                status,
+                headers={"Location": "https://other.example/secret-token"},
+            )
+        )
+    ) as client:
+        rpc = ReadRPC(client, "https://rpc.example/secret-token")
+        with pytest.raises(ValueError) as error:
+            rpc.request("eth_chainId", [])
+        assert "secret-token" not in str(error.value)
+
+
+def test_no_rpc_clock_override_and_no_broadcaster_in_cli(capsys, monkeypatch):
+    from verdict.cli import main
+
+    monkeypatch.setattr("sys.argv", ["verdict", "testnet", "preflight", "--help"])
+    with pytest.raises(SystemExit):
+        main()
+    output = capsys.readouterr().out
+    assert "--at" not in output
+    assert "--private-key" not in output
+
+
+def test_reviewed_cost_budget_is_checked(chain):
+    smaller = NetworkProfile.model_validate(
+        {
+            **chain.profile.model_dump(mode="json"),
+            "maximum_transaction_cost_wei": 1,
+        }
+    )
+    with pytest.raises(ValueError, match="cost cap"):
+        deployment_plan(
+            smaller,
+            operation="deploy-oracle",
+            sender=chain.sender,
+            administrator=chain.admin,
+            nonce=0,
+            now=chain.now,
+        )
+
+
 def test_cli_preparation_has_no_database_network_or_overwrite(tmp_path, monkeypatch, capsys):
     from verdict.cli import main
 
