@@ -108,8 +108,6 @@ def phase_checks(rows):
 
 
 def run_local_demo(directory, source_profile, *, start=None):
-    from eth_tester.exceptions import TransactionFailed
-
     from verdict.demo_evm import LocalEVM
 
     source_profile = NetworkProfile.model_validate(source_profile)
@@ -117,6 +115,8 @@ def run_local_demo(directory, source_profile, *, start=None):
     # Validate before creating an output directory or an EVM.
     session_spec(source_profile, start)
     evm = LocalEVM(timestamp=start + 30)
+    from eth_tester.exceptions import TransactionFailed
+
     profile = NetworkProfile.model_validate(
         {
             **source_profile.model_dump(mode="json"),
@@ -345,6 +345,7 @@ def verify_archive(directory, *, expected_archive_id):
 
     def load(name):
         path = directory / name
+        require(path.resolve().is_relative_to(directory), "demo file escapes archive")
         require(path.stat().st_size <= 32_000_000, "oversized demo artifact")
         return json.loads(path.read_text(encoding="utf-8"))
 
@@ -586,4 +587,7 @@ def verify_archive(directory, *, expected_archive_id):
         "phases": len(reconstructed),
         "transactions": len(transactions),
         "publication_ready": False,
+        "verification_scope": "evidence-signatures-transactions-and-archive-linkage",
+        "evm_reexecuted": False,
+        "receipt_proof_verified": False,
     }

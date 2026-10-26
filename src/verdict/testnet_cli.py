@@ -54,6 +54,21 @@ def add_commands(commands):
         "receipt", help="Audit a wallet transaction against a reviewed plan"
     )
     receipt.add_argument("--transaction-hash", required=True)
+    local = actions.add_parser("demo-local", help="Run an isolated synthetic EVM demonstration")
+    local.add_argument("--directory", type=Path, required=True)
+    local.add_argument("--start", help="Future UTC fixture clock; defaults to 2030-01-01T00:00:00Z")
+    fresh = actions.add_parser(
+        "demo-evidence", help="Retain current synthetic session evidence only"
+    )
+    fresh.add_argument("--directory", type=Path, required=True)
+    fresh.add_argument(
+        "--session-start", required=True, help="Fixed UTC session start aligned to 30 seconds"
+    )
+    verify = actions.add_parser("demo-verify", help="Verify a local demo archive offline")
+    verify.add_argument("--directory", type=Path, required=True)
+    verify.add_argument(
+        "--archive-id", required=True, help="Independently obtained archive checksum"
+    )
     for item in (check, receipt):
         item.add_argument("--plan", type=Path, required=True)
         item.add_argument("--plan-id", required=True, help="Independently reviewed plan checksum")
@@ -61,11 +76,15 @@ def add_commands(commands):
         item.add_argument("--profile", type=Path, default=DEFAULT_PROFILE)
         if item is not profile:
             item.add_argument("--output", type=Path, required=True)
+    for item in (local, fresh):
+        item.add_argument("--profile", type=Path, default=DEFAULT_PROFILE)
 
 
 def run(args, parser):
+    from pydantic import AwareDatetime, TypeAdapter
+
     from verdict.evidence import EvidenceBundle
-    from verdict.signing import ReportPolicy, SignedDiagnosticReport, SignerRegistry
+    from verdict.signing import ReportPolicy, SignedDiagnosticReport, SignerRegistry, unix_seconds
 
     def load(model, path):
         if path.stat().st_size > 32_000_000:
@@ -73,7 +92,47 @@ def run(args, parser):
         return model.model_validate_json(path.read_text(encoding="utf-8"))
 
     try:
+        action = args.testnet_action
+        if action == "demo-verify":
+            from verdict.demo_archive import verify_archive
+
+            print(
+                json.dumps(
+                    verify_archive(args.directory, expected_archive_id=args.archive_id),
+                    sort_keys=True,
+                )
+            )
+            return
         profile = load(NetworkProfile, args.profile)
+        if action == "demo-local":
+            from verdict.demo_archive import run_local_demo, verify_archive
+
+            start = (
+                unix_seconds(TypeAdapter(AwareDatetime).validate_python(args.start))
+                if args.start
+                else None
+            )
+            manifest = run_local_demo(args.directory, profile, start=start)
+            print(
+                json.dumps(
+                    verify_archive(args.directory, expected_archive_id=manifest["archive_id"]),
+                    sort_keys=True,
+                )
+            )
+            return
+        if action == "demo-evidence":
+            from verdict.demo_replay import export_evidence
+
+            start = unix_seconds(TypeAdapter(AwareDatetime).validate_python(args.session_start))
+            print(
+                json.dumps(
+                    export_evidence(
+                        args.directory, profile, start=start, now=int(datetime.now(UTC).timestamp())
+                    ),
+                    sort_keys=True,
+                )
+            )
+            return
         if args.testnet_action == "profile":
             print(
                 json.dumps(
@@ -84,7 +143,6 @@ def run(args, parser):
         if args.output.exists():
             raise ValueError("output already exists; review artifacts cannot be overwritten")
         now = int(datetime.now(UTC).timestamp())
-        action = args.testnet_action
         if action.startswith("plan-"):
             common = dict(
                 sender=args.sender,

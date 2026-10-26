@@ -17,6 +17,7 @@ dependencies = [
   "eth-utils>=5,<7",
   "fastapi>=0.115,<1",
   "httpx>=0.28,<1",
+  "hexbytes>=2,<3",
   "psycopg[binary]>=3.2,<4",
   "pydantic-settings>=2.8,<3",
   "redis>=6.4,<7",

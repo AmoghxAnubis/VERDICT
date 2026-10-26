@@ -76,6 +76,17 @@ class ObservationData(BaseModel):
 
     @model_validator(mode="after")
     def source_metadata_matches(self):
+        if (
+            self.provenance
+            and self.provenance.verification == "synthetic_fixture"
+            and (
+                not self.dataset.startswith("replay:")
+                or self.raw_payload.get("synthetic") is not True
+            )
+        ):
+            raise ValueError(
+                "synthetic provenance requires an explicitly marked replay observation"
+            )
         expected = {"chainlink": "oracle", "pyth": "oracle", "uniswap_v3": "dex"}
         if self.source in expected:
             if self.source_type != expected[self.source]:

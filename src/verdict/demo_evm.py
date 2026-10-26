@@ -1,5 +1,7 @@
 """Development-only in-memory EVM. No network transport or public transaction sender."""
 
+from datetime import UTC, datetime
+
 from eth_account import Account
 from eth_account.typed_transactions import TypedTransaction
 from eth_utils import keccak
@@ -10,6 +12,10 @@ from verdict.testnet_rpc import READ_METHODS, rpc_transaction
 
 class LocalEVM:
     def __init__(self, *, timestamp):
+        if type(timestamp) is not int or timestamp <= int(datetime.now(UTC).timestamp()):
+            raise ValueError(
+                "local EVM needs a future fixture clock to avoid host-time mining jumps"
+            )
         try:
             from eth_tester import EthereumTester, PyEVMBackend
         except ImportError:
