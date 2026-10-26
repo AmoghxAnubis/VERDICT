@@ -18,7 +18,7 @@ from verdict.testnet import (
 )
 from verdict.testnet_rpc import CheckFailed, ReadRPC, audit_receipt, preflight
 
-DEFAULT_PROFILE = ROOT / "networks" / "sepolia-v1.json"
+DEFAULT_PROFILE = ROOT / "networks" / "sepolia-v2.json"
 
 
 def add_commands(commands):
