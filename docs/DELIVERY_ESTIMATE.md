@@ -21,8 +21,9 @@ Backend observations, six adapters, ingestion/replay, statistical diagnostics,
 dependency registry, source scoring, quarantine/weighting, aggregation, quality gates
 and full-pipeline synthetic benchmarks are implemented. As of 26 October 2026,
 dashboard/live delivery, browser verification, evidence/proofs, signed reports,
-local contracts, and Sepolia deployment preparation are also implemented. Public
-testnet deployment and the timed manipulation/outage/recovery demonstration remain
+local contracts, Sepolia deployment preparation, and the repeatable local
+manipulation/outage/recovery demonstration are also implemented. Public
+testnet deployment and execution of the timed demonstration remain
 pending; see the [runbook](TESTNET_RUNBOOK.md). The synthetic correlated-majority
 attack target fails; honest unavailable behavior remains essential. The ranges
 above preserve the original planning baseline and have not been re-estimated.
@@ -42,6 +43,6 @@ receipt-deduplication defect. Real Redis and the pinned PostgreSQL 17 container
 runtime still need verification. This progress does not materially change the
 estimate above.
 
-Next sequence: build the repeatable timed testnet demonstration, verify the public
-RPC/wallet/deployment path, and continue service-runtime and evidence/calibration
+Next sequence: verify the public RPC/wallet/deployment path and timed demonstration,
+and continue service-runtime and evidence/calibration
 checks. Refresh this estimate when those external gates are resolved.
