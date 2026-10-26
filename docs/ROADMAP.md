@@ -141,7 +141,8 @@ See [dashboard operation and checks](DASHBOARD.md).
 - [x] Domain-bound signed reports and key management/rotation policy.
 - [x] Oracle/consumer contracts, authorization, expiry, and replay protection tests.
 - [x] Select testnet, publication cadence, and deployment/runbook preparation.
-- [ ] Repeatable end-to-end manipulation/outage/recovery demonstration.
+- [x] Repeatable local end-to-end manipulation/outage/recovery demonstration.
+- [ ] Execute and independently verify the public Sepolia deployment/demonstration.
 
 Gate: every testnet update traces back to retained evidence and a verified report.
 
@@ -195,6 +196,17 @@ pass locally, with six optional PostgreSQL/Redis checks skipped. Compiler
 reproducibility, lint, formatting, and frozen dependency checks pass. The local
 eight-key initialization probe fits the two-million-gas default plan; actual
 Sepolia gas and wallet execution still require public verification.
+
+A continuous replay now retains five checkpoints through the complete diagnostic
+pipeline, signed reports, preflight, local contract execution, and exact receipt
+audits. The isolated EVM run executes eight transactions and checks duplicate,
+changed-root, and expired-report rejection plus unavailable consumer behavior.
+An independently pinned offline archive verifier reproduces evidence/signatures
+and transaction/event linkage; a current-clock evidence command prepares the same
+session for later public execution. Replay provenance is explicitly synthetic, and
+the demo has its own migrated database. See [demonstration commands and scope](TESTNET_DEMO.md).
+Local execution is complete; the Batch 5 public testnet gate remains open pending
+wallet/RPC setup, real transaction hashes, and independent chain verification.
 
 ## Later milestones
 
