@@ -196,8 +196,8 @@ def test_digest_matches_independent_solidity_abi_and_json_typed_data(
         ("dataset", "live"),
         ("key_id", "other"),
         ("issued_at", OBSERVED + 3),
-    ("valid_until", OBSERVED + 29),
-    ("valid_until", OBSERVED + 31),
+        ("valid_until", OBSERVED + 29),
+        ("valid_until", OBSERVED + 31),
         ("round_id", OBSERVED + 1),
         ("status", "healthy"),
         ("value", "100"),
@@ -251,6 +251,34 @@ def test_stale_future_or_invalid_issuance_is_rejected(bundle, policy, registry, 
             account=FIRST,
             issued_at=issued,
         )
+
+
+def test_expiry_is_capped_by_both_ttl_and_signer_retirement(bundle, policy, registry):
+    short = policy.model_copy(update={"maximum_ttl_seconds": 5})
+    restricted = registry.model_copy(update={"policy_id": short.policy_id})
+    report = sign_report(
+        bundle,
+        policy=short,
+        registry=restricted,
+        key_id="first",
+        account=FIRST,
+        issued_at=OBSERVED + 1,
+    )
+    assert report.message.valid_until == OBSERVED + 6
+    with pytest.raises(ValueError, match="expired"):
+        verify(report, bundle, short, restricted, now=OBSERVED + 6)
+    retiring = restricted.model_copy(
+        update={"keys": (restricted.keys[0].model_copy(update={"valid_until": OBSERVED + 4}),)}
+    )
+    report = sign_report(
+        bundle,
+        policy=short,
+        registry=retiring,
+        key_id="first",
+        account=FIRST,
+        issued_at=OBSERVED + 1,
+    )
+    assert report.message.valid_until == OBSERVED + 4
 
 
 def test_wrong_key_registry_digest_or_signature_is_rejected(signed, bundle, policy, registry):
@@ -585,3 +613,30 @@ def test_strict_time_domain_and_unavailable_fields():
         ReportDomain(chain_id=31337, verifying_contract="0x" + "00" * 20)
     with pytest.raises(ValueError):
         DiagnosticMessage.model_validate({"status": "available"})
+
+
+def test_cli_creates_only_an_encrypted_keyfile(tmp_path, monkeypatch, capsys):
+    from verdict.cli import main
+
+    password = "separate test-only passphrase"
+    destination = tmp_path / "generated.keystore.json"
+    monkeypatch.setenv("VERDICT_TEST_KEY_PASSWORD", password)
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "verdict",
+            "signing",
+            "key-create",
+            "--password-env",
+            "VERDICT_TEST_KEY_PASSWORD",
+            "--output",
+            str(destination),
+        ],
+    )
+    main()
+    printed = capsys.readouterr().out
+    assert password not in printed + destination.read_text()
+    assert json.loads(printed)["encrypted"] is True
+    assert json.loads(destination.read_text())["crypto"]["kdfparams"]["n"] == 262144
+    with pytest.raises(SystemExit):
+        main()
