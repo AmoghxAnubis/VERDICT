@@ -114,6 +114,11 @@ Use the real Sepolia profile and separate report-signing key. Local archive repo
 fixture keys, substituted genesis, and frozen timestamps are not public credentials
 or current reports.
 
+A preparation snapshot can supply the configuration for initialization. After
+deployment/initialization confirmations, choose a new session start for the actual
+published checkpoints. This generates new synthetic observations; it does not
+rewrite the preparation bundle or reuse an expired signed report.
+
 Choose one session start aligned to 30 seconds and retain it for all snapshots.
 This PowerShell example starts a session 90 seconds before the current grid point,
 backfilling its explicitly synthetic warmup:
