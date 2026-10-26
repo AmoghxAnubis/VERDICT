@@ -22,7 +22,9 @@ DEFAULT_PROFILE = ROOT / "networks" / "sepolia-v1.json"
 
 
 def add_commands(commands):
-    root = commands.add_parser("testnet", help="Unsigned Sepolia plans and read-only RPC checks")
+    root = commands.add_parser(
+        "testnet", help="Sepolia preparation, read-only checks, and isolated local demonstration"
+    )
     actions = root.add_subparsers(dest="testnet_action", required=True)
     profile = actions.add_parser("profile", help="Inspect the pinned public network profile")
     deploy = actions.add_parser("plan-deploy", help="Prepare unsigned constructor calldata")

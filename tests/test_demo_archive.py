@@ -3,6 +3,7 @@
 import builtins
 import json
 import shutil
+import sqlite3
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -77,6 +78,15 @@ def test_continuous_demo_executes_manipulation_outage_recovery(archive):
     assert all(load(directory / "checks.json").values())
     assert (directory / "replay.db").is_file()
     assert (directory / "report.md").is_file()
+    with sqlite3.connect(
+        f"file:{(directory / 'replay.db').as_posix()}?mode=ro", uri=True
+    ) as database:
+        assert database.execute("select count(*) from observations").fetchone()[0] == 258
+        assert database.execute("select count(*) from confidence_rounds").fetchone()[0] == 46
+        assert (
+            database.execute("select version_num from alembic_version").fetchone()[0]
+            == "0011_round_events"
+        )
 
 
 def test_offline_archive_reproduces_evidence_without_evm_or_network(archive, monkeypatch):

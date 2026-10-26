@@ -3,6 +3,7 @@
 import ast
 import hashlib
 import json
+from fractions import Fraction
 from pathlib import Path, PurePosixPath
 
 from eth_account import Account
@@ -86,6 +87,11 @@ def phase_checks(rows):
     )
     require(
         recovered_attack["sources"]["coinbase"]["weight_bps"] > 0, "manipulation recovery missing"
+    )
+    require(
+        abs(Fraction(attack["candidate_value"]) / Fraction(baseline["candidate_value"]) - 1) * 10000
+        <= 5,
+        "isolated manipulation exceeded the diagnostic candidate shift target",
     )
     require(
         outage["candidate_value"] is None and outage["total_weight_bps"] == 0,
@@ -532,13 +538,36 @@ def verify_archive(directory, *, expected_archive_id):
         plans["deploy-oracle"].expected_contract_address
         == manifest["oracle"]
         == policy.domain.verifying_contract
-        and plans["deploy-consumer"].expected_contract_address == manifest["consumer"],
+        and plans["deploy-consumer"].expected_contract_address == manifest["consumer"]
+        and plans["deploy-consumer"].oracle == manifest["oracle"]
+        and plans["initialize"].oracle == manifest["oracle"]
+        and plans["initialize"].administrator == plans["deploy-oracle"].administrator,
         "demo contract/domain mismatch",
     )
     reconstructed = []
     for at, name in CHECKPOINTS:
         prefix = f"rounds/{name}"
         bundle = EvidenceBundle.model_validate(artifact(f"{prefix}/evidence.json"))
+        if at == 90:
+            initial = plans["initialize"]
+            reconstructed_initial = initialization_plan(
+                profile,
+                sender=initial.transaction.sender,
+                nonce=initial.transaction.nonce,
+                oracle=manifest["oracle"],
+                bundle=bundle,
+                policy=policy,
+                registry=registry,
+                expected_registry_id=registry.registry_id,
+                now=initial.created_at,
+                gas=initial.transaction.gas,
+                max_fee=initial.transaction.maxFeePerGas,
+                priority_fee=initial.transaction.maxPriorityFeePerGas,
+            )
+            require(
+                reconstructed_initial == initial,
+                "initial configuration does not match baseline evidence",
+            )
         signed = verify_report(
             SignedDiagnosticReport.model_validate(artifact(f"{prefix}/signed-report.json")),
             bundle=bundle,
