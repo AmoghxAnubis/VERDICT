@@ -25,6 +25,15 @@ jobs:
       VERDICT_TEST_REDIS_URL: redis://localhost:6379/0
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: contracts/package-lock.json
+      - run: npm ci
+        working-directory: contracts
+      - run: npm run check
+        working-directory: contracts
       - uses: astral-sh/setup-uv@v6
         with:
           version: "0.11.2"

@@ -122,10 +122,11 @@ class Contract:
         types = [abi_type(field) for field in self.functions[name]["outputs"]]
         return decode(types, bytes.fromhex(raw[2:]))
 
-    def tx(self, name, *arguments, sender=None, succeeds=True):
-        receipt = self.tester.get_transaction_receipt(
-            self.tester.send_transaction(self.transaction(name, *arguments, sender=sender))
-        )
+    def tx(self, name, *arguments, sender=None, succeeds=True, gas=None):
+        transaction = self.transaction(name, *arguments, sender=sender)
+        if gas is not None:
+            transaction["gas"] = gas
+        receipt = self.tester.get_transaction_receipt(self.tester.send_transaction(transaction))
         assert receipt["status"] == int(succeeds)
         return receipt
 
@@ -281,7 +282,23 @@ def test_python_signature_and_verified_bundle_reach_the_real_evm(scenario):
     s.initialize()
     s.warp(OBSERVED + 1)
     receipt = s.oracle.tx("submit", s.report, s.signature, sender=s.relayer)
-    assert receipt["logs"]
+    accepted = next(
+        log
+        for log in receipt["logs"]
+        if log["topics"][0]
+        == "0x"
+        + keccak(text="DiagnosticAccepted(bytes32,bytes32,bytes32,uint64,address,uint64)").hex()
+    )
+    assert accepted["topics"][1:] == [
+        s.report["assessmentId"],
+        s.report["evidenceRoot"],
+        s.payload["digest"],
+    ]
+    event_round, event_signer, event_expiry = decode(
+        ["uint64", "address", "uint64"], bytes.fromhex(accepted["data"][2:])
+    )
+    assert event_round == OBSERVED and to_checksum_address(event_signer) == FIRST.address
+    assert event_expiry == s.signed.message.valid_until
     report, digest, signer, fresh = s.oracle.call("latestDiagnostic")
     assert (
         fresh and digest.hex() == s.signed.digest and to_checksum_address(signer) == FIRST.address
@@ -376,7 +393,7 @@ def test_expired_stored_diagnostics_never_become_consumer_prices(scenario):
     s.consumer.rejects("readPrice", error="FeedUnavailable()")
 
 
-@pytest.mark.parametrize("kind", ["foreign", "short", "high-s", "bad-v", "zero"])
+@pytest.mark.parametrize("kind", ["foreign", "short", "compact", "high-s", "bad-v", "zero"])
 def test_signature_authentication_and_canonical_encoding(scenario, kind):
     s = scenario
     s.initialize()
@@ -386,6 +403,8 @@ def test_signature_authentication_and_canonical_encoding(scenario, kind):
         raw = bytes(SECOND.sign_message(signable(s.policy.domain, s.signed.message)).signature)
     elif kind == "short":
         raw = b"short"
+    elif kind == "compact":
+        raw = raw[:64]
     elif kind == "high-s":
         raw = (
             raw[:32]
@@ -742,3 +761,35 @@ def test_contract_input_cli_is_offline_and_preserves_revoked_registry_export(
     assert json.loads(files["registry-output"].read_text())["grants"][0]["revoked"]
     with pytest.raises(ValueError, match="trusted registry"):
         registry_inputs(policy=s.policy, registry=s.registry, expected_registry_id="0" * 64)
+
+
+def test_maximum_registry_size_fits_the_local_block_gas_limit(scenario):
+    s = scenario
+    keys = [s.registry.keys[0]]
+    for index in range(127):
+        keys.append(
+            SignerAuthorization(
+                key_id=f"spare-{index:03d}",
+                signer=to_checksum_address((index + 1000).to_bytes(20, "big")),
+                valid_from=OBSERVED - 60,
+                valid_until=OBSERVED + 3600,
+            )
+        )
+    registry = s.registry.model_copy(update={"keys": tuple(keys)})
+    inputs = registry_inputs(
+        policy=s.policy, registry=registry, expected_registry_id=registry.registry_id
+    )
+    p = s.payload
+    receipt = s.oracle.tx(
+        "initialize",
+        p["policy_id"],
+        p["configuration_hash"],
+        30,
+        30,
+        inputs["registry_id"],
+        inputs["grants"],
+        gas=25_000_000,
+    )
+    assert receipt["gas_used"] < 25_000_000
+    for key in inputs["grants"]:
+        assert to_checksum_address(s.oracle.call("grants", key["keyId"])[1]) == key["signer"]
