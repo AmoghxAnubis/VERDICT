@@ -92,6 +92,7 @@ def observations(spec, until):
                     protocol=source,
                     instrument="synthetic:testnet-demo-v1",
                     verification="synthetic_fixture",
+                    dependencies=("synthetic:testnet-demo-v1",),
                 )
                 if kind != "exchange"
                 else None
