@@ -126,7 +126,8 @@ def test_digest_matches_independent_solidity_abi_and_json_typed_data(
             ["bytes32", "bytes32", "bytes32", "uint256", "address"],
             [
                 keccak(
-                    text="EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+                    text="EIP712Domain(string name,string version,"
+                    "uint256 chainId,address verifyingContract)"
                 ),
                 keccak(text="VERDICT Diagnostic Reports"),
                 keccak(text="1"),
@@ -138,10 +139,13 @@ def test_digest_matches_independent_solidity_abi_and_json_typed_data(
     message = signed.message
     payload = keccak(
         encode(
-            ["bytes32"] * 9 + ["uint64"] * 4 + ["uint256", "uint16", "uint8", "uint8", "bool"],
+            ["bytes32", "uint16"]
+            + ["bytes32"] * 7
+            + ["uint64"] * 4
+            + ["uint256", "uint16", "uint8", "uint8", "bool"],
             [
                 keccak(text=declaration),
-                (1).to_bytes(32, "big"),
+                1,
                 keccak(text="ETH-USD"),
                 keccak(text=DATASET),
                 bytes.fromhex(message.assessment_id),

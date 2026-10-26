@@ -19,9 +19,12 @@ def write_new_json(path: Path, value: dict) -> None:
 def create_keystore(password: str) -> tuple[dict, str]:
     if not isinstance(password, str) or len(password) < 12:
         raise ValueError("keystore passphrase must contain at least 12 characters")
-    account = Account.create()
-    encrypted = Account.encrypt(account.key, password, kdf="scrypt", iterations=SCRYPT_N)
-    return encrypted, account.address
+    try:
+        account = Account.create()
+        encrypted = Account.encrypt(account.key, password, kdf="scrypt", iterations=SCRYPT_N)
+        return encrypted, account.address
+    except Exception:
+        raise ValueError("unable to create the encrypted signing keystore") from None
 
 
 def unlock_keystore(path: Path, password: str):

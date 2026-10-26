@@ -5,6 +5,7 @@ from typing import Annotated, Literal
 
 from eth_account import Account
 from eth_account.messages import encode_typed_data
+from eth_keys.exceptions import BadSignature
 from eth_utils import keccak, to_checksum_address
 from pydantic import Field, TypeAdapter, field_validator, model_validator
 
@@ -416,7 +417,10 @@ def verify_report(signed, *, bundle, policy, registry, expected_registry_id, now
     r, s, v = int.from_bytes(raw[:32], "big"), int.from_bytes(raw[32:64], "big"), raw[64]
     if not (0 < r < SECP256K1_N and 0 < s <= SECP256K1_N // 2 and v in (27, 28)):
         raise ValueError("signature requires canonical low-s secp256k1 and v=27/28")
-    recovered = Account.recover_message(signable(signed.domain, signed.message), signature=raw)
+    try:
+        recovered = Account.recover_message(signable(signed.domain, signed.message), signature=raw)
+    except BadSignature:
+        raise ValueError("invalid secp256k1 signature") from None
     if recovered != grant.signer or signed.signer != grant.signer:
         raise ValueError("signature is not from the authorized signer")
     return signed
