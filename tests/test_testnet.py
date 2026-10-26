@@ -294,7 +294,7 @@ def test_profile_rejects_incompatible_bounds(changes):
     "field,value",
     [
         ("data", "0x"),
-        ("gas", 8_000_001),
+        ("gas", 16_700_001),
         ("value", 1),
         ("nonce", -1),
         ("chainId", 1),
