@@ -793,3 +793,46 @@ def test_maximum_registry_size_fits_the_local_block_gas_limit(scenario):
     assert receipt["gas_used"] < 25_000_000
     for key in inputs["grants"]:
         assert to_checksum_address(s.oracle.call("grants", key["keyId"])[1]) == key["signer"]
+
+
+def test_initial_configuration_limits_and_failed_initialization_are_atomic(scenario):
+    s = scenario
+    p = s.payload
+    normal = [p["policy_id"], p["configuration_hash"], 30, 30, p["registry_id"], p["grants"]]
+    for index, value in (
+        (0, "0x" + "0" * 64),
+        (1, "0x" + "0" * 64),
+        (2, 0),
+        (2, 3601),
+        (3, 0),
+        (3, 3601),
+    ):
+        changed = list(normal)
+        changed[index] = value
+        s.oracle.rejects("initialize", *changed, error="InvalidConfiguration()")
+    broken = [*normal[:-1], []]
+    s.oracle.tx("initialize", *broken, succeeds=False)
+    assert s.oracle.call("initialized") == (False,)
+    assert s.oracle.call("maximumAge") == (0,)
+    assert s.oracle.call("policyId") == (b"\x00" * 32,)
+    s.initialize()
+    assert s.oracle.call("initialized") == (True,)
+
+
+def test_constructor_rejects_empty_domains_and_invalid_consumer_settings(scenario):
+    s = scenario
+    zero = "0x" + "00" * 20
+    deployments = [
+        ("DiagnosticOracle", ["address", "bytes32"], [zero, keccak(text=DATASET)]),
+        ("DiagnosticOracle", ["address", "bytes32"], [s.owner, b"\x00" * 32]),
+        ("FailClosedConsumer", ["address", "uint32", "uint16"], [s.owner, 30, 7500]),
+        ("FailClosedConsumer", ["address", "uint32", "uint16"], [s.oracle.address, 0, 7500]),
+        ("FailClosedConsumer", ["address", "uint32", "uint16"], [s.oracle.address, 3601, 7500]),
+        ("FailClosedConsumer", ["address", "uint32", "uint16"], [s.oracle.address, 30, 10001]),
+    ]
+    for name, types, arguments in deployments:
+        data = artifact(name)["bytecode"] + encode(types, arguments).hex()
+        receipt = s.tester.get_transaction_receipt(
+            s.tester.send_transaction({"from": s.owner, "gas": 12_000_000, "data": data})
+        )
+        assert receipt["status"] == 0 and receipt["contract_address"] is None
