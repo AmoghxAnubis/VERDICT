@@ -139,7 +139,7 @@ See [dashboard operation and checks](DASHBOARD.md).
 
 - [x] Canonical evidence encoding, retention, Merkle trees, inclusion proofs.
 - [x] Domain-bound signed reports and key management/rotation policy.
-- [ ] Oracle/consumer contracts, authorization, expiry, and replay protection tests.
+- [x] Oracle/consumer contracts, authorization, expiry, and replay protection tests.
 - [ ] Select testnet, publication cadence, and deployment/runbook.
 - [ ] Repeatable end-to-end manipulation/outage/recovery demonstration.
 
@@ -151,7 +151,7 @@ dependency evidence. A versioned typed byte codec, domain-separated SHA-256 tree
 count-bound roots, and inclusion proofs are implemented. Offline verification
 reproduces the pipeline; exports and proof files refuse overwrites. Existing SQL
 evidence is unchanged, and no retention expiry or publication path is added.
-Contracts and testnet work remain pending.
+Public testnet work remains pending.
 See [encoding, proof rules, and retention limits](EVIDENCE.md).
 
 Offline EIP-712 diagnostic reports now bind the domain, dataset, evidence root,
@@ -160,12 +160,23 @@ V1 preserves unavailable/null output. Public signer registry successors support
 bounded rotation overlap and verification-time revocation, with independently
 pinned registry hashes and no resurrection of retired identities. Encrypted local
 development keystores and an offline CLI are implemented. Production key custody,
-administrative registry distribution, stateful replay protection, contracts, and
-testnet deployment remain separate gates. See [signing and rotation](SIGNING.md).
+administrative registry distribution, and public testnet operations remain separate
+gates. See [signing and rotation](SIGNING.md).
 
 On 26 October 2026, 33 focused signing checks and the full 528-test backend
 regression suite pass locally; six optional PostgreSQL/Redis checks are skipped.
 An independent Solidity ABI encoding agrees with the signed EIP-712 digest.
+
+Local Solidity oracle/consumer contracts now execute the same EIP-712 reports on
+Py-EVM, enforce current signer windows/revocations, expiry, strictly increasing
+rounds, assessment/digest replay protection, immutable policy context, and two-step
+administration. Full registry snapshots are monotonic and emergency stops cannot
+be undone by later snapshots. V1 accepts unavailable diagnostics only; the consumer
+always withholds usable price reads. On 26 October 2026, 59 contract checks and
+the full 587-test suite pass, with six optional PostgreSQL/Redis checks skipped.
+Compiler artifacts reproduce from pinned sources. Public deployment and the
+testnet manipulation/outage/recovery demonstration remain pending. See
+[contracts and verified ABI exports](CONTRACTS.md).
 
 ## Later milestones
 

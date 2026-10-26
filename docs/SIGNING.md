@@ -62,7 +62,9 @@ verification prints the clock used in its result.
 
 EIP-712 itself does not prevent replay. This offline verifier is stateless and can
 verify an unexpired report repeatedly. Stateful duplicate/round rejection,
-block-time freshness, and feed publication are the next contract milestone.
+block-time freshness, and guarded consumer reads are implemented by the
+[local contract milestone](CONTRACTS.md). Public deployment and usable feed
+publication remain pending.
 
 ## Registry trust and transitions
 
@@ -153,8 +155,8 @@ the successor hash, and ensure consumers advance their trusted hash:
 Revocation defaults to now. Old signatures are rejected at/after that time even
 when issued earlier. Restore signing with a fresh key ID/address; helpers cannot
 resurrect a revoked identity. Keep compromised material offline for incident
-procedures instead of reusing it. Contract state will need its own emergency
-administration procedure once contracts exist.
+procedures instead of reusing it. The local oracle also provides a persistent
+owner-only emergency stop; see [contract administration](CONTRACTS.md).
 
 ## Key custody and validation
 

@@ -131,5 +131,5 @@ cover exports, offline verification, proof generation, independent root checking
 and refusal to overwrite existing artifacts.
 
 Offline signing and local development key rotation are implemented separately.
-Production key custody, cross-language implementations, contracts, hosting and
-backup guarantees, and testnet deployment remain separate release gates.
+Production key custody, cross-language implementations, public contract deployment,
+hosting and backup guarantees, and testnet deployment remain separate release gates.

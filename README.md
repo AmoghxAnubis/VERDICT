@@ -17,7 +17,9 @@ Retained rounds can also be exported as self-contained evidence bundles with
 offline verification and Merkle inclusion proofs; see [evidence commands](docs/EVIDENCE.md).
 An [offline signing workflow](docs/SIGNING.md) adds EIP-712 diagnostic reports,
 encrypted development keys, and public signer rotation/revocation registries.
-Independent-domain evidence, usable feed output, and contracts are
+Local [oracle/consumer contracts](docs/CONTRACTS.md) verify the same signatures,
+enforce authorization/expiry/replay protection, and keep unusable output withheld.
+Independent-domain evidence, usable feed output, and public deployment are
 tracked in [the roadmap](docs/ROADMAP.md). The feed endpoint returns an explicit
 unavailable response until consensus exists.
 
