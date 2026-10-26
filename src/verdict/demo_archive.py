@@ -311,6 +311,33 @@ def run_local_demo(directory, source_profile, *, start=None):
             "unavailable_consumer_rejected_every_round": True,
         },
     )
+    report = [
+        "# Local manipulation, outage, and recovery demonstration",
+        "",
+        "Synthetic replay executed on an isolated Py-EVM chain using the Sepolia chain ID",
+        "and a substituted local genesis. No public deployment or consensus finality is claimed.",
+        "",
+        "| Seconds | Phase | Diagnostic candidate | Allocated weight (bps) | Consumer can act |",
+        "| --- | --- | --- | --- | --- |",
+        *[
+            f"| {row['seconds']} | [{row['phase']}]({row['prefix']}/evidence.json) | "
+            f"{row['candidate_value'] or 'unavailable'} | {row['total_weight_bps']} | false |"
+            for row in stages
+        ],
+        "",
+        "All signed usable values/confidence remain unavailable/null. Candidates above are diagnostic only.",
+        "The shortened policies and synthetic dependency graph are test assumptions, not live calibration.",
+        "",
+        "Eight transactions passed preflight and receipt audits. Duplicate, changed-root, and expired",
+        "submissions were rejected, and usable consumer reads reverted at every checkpoint.",
+        "",
+        "`archive.json` inventories the database, complete evidence bundles, assessment proofs, signed",
+        "reports, unsigned plans, signed raw transactions, preflights, receipts, and audit records.",
+        "Retain its independently printed archive ID for `testnet demo-verify`.",
+        "",
+    ]
+    with (directory / "report.md").open("x", encoding="utf-8") as output:
+        output.write("\n".join(report))
     body = {
         "schema_version": 1,
         "kind": "verdict-local-e2e-v1",
