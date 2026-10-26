@@ -237,6 +237,14 @@ round and retain a new round; extending an old timestamp or deadline is forbidde
 
 ## Validation and remaining gate
 
+On 26 October 2026, **64 preparation/RPC checks** and the full **651-test backend
+suite** pass locally; six optional PostgreSQL/Redis checks are skipped. One existing
+FastAPI test-client deprecation warning remains. Lint, formatting, frozen offline
+dependency installation/lock validation, and reproducible compiler checks pass.
+An additional eight-key initialization probe used 1,257,487 gas locally, with an
+estimate of 1,260,155 (1,386,171 including the required margin), below the default
+two-million-gas initialization plan. These are local measurements, not Sepolia costs.
+
 Tests exercise real compiled bytecode on a local Py-EVM chain with the Sepolia
 chain ID, an explicitly substituted local genesis, fake funded test accounts,
 and synthetic retained evidence. Production defaults still reject that genesis.

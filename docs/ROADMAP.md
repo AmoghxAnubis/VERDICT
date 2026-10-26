@@ -190,6 +190,12 @@ deployment hashes, and the timed manipulation/outage/recovery demonstration rema
 unverified and belong to the next gate. Local preparation does not enable usable
 feed publication.
 
+On 26 October 2026, 64 preparation/RPC checks and the full 651-test backend suite
+pass locally, with six optional PostgreSQL/Redis checks skipped. Compiler
+reproducibility, lint, formatting, and frozen dependency checks pass. The local
+eight-key initialization probe fits the two-million-gas default plan; actual
+Sepolia gas and wallet execution still require public verification.
+
 ## Later milestones
 
 BTC/USD; operational hardening and observability; independently operated nodes;

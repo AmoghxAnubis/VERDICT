@@ -19,9 +19,13 @@ the end-to-end demo. Paid audit and production operations are outside these rang
 
 Backend observations, six adapters, ingestion/replay, statistical diagnostics,
 dependency registry, source scoring, quarantine/weighting, aggregation, quality gates
-and full-pipeline synthetic benchmarks are implemented. Dashboard/live delivery and
-testnet publication remain unimplemented. The synthetic correlated-majority attack
-target fails; honest unavailable behavior remains essential.
+and full-pipeline synthetic benchmarks are implemented. As of 26 October 2026,
+dashboard/live delivery, browser verification, evidence/proofs, signed reports,
+local contracts, and Sepolia deployment preparation are also implemented. Public
+testnet deployment and the timed manipulation/outage/recovery demonstration remain
+pending; see the [runbook](TESTNET_RUNBOOK.md). The synthetic correlated-majority
+attack target fails; honest unavailable behavior remains essential. The ranges
+above preserve the original planning baseline and have not been re-estimated.
 
 Usable live publication also depends on verified independence/deployment evidence
 and sufficient fresh providers. Historical calibration is incomplete. These are
@@ -38,6 +42,6 @@ receipt-deduplication defect. Real Redis and the pinned PostgreSQL 17 container
 runtime still need verification. This progress does not materially change the
 estimate above.
 
-Next sequence: finish available service-runtime and evidence/calibration checks;
-implement dashboard/live updates; build evidence and testnet integration. Refresh
-this estimate when those external gates are resolved.
+Next sequence: build the repeatable timed testnet demonstration, verify the public
+RPC/wallet/deployment path, and continue service-runtime and evidence/calibration
+checks. Refresh this estimate when those external gates are resolved.
