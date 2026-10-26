@@ -85,7 +85,7 @@ def test_continuous_demo_executes_manipulation_outage_recovery(archive):
         assert database.execute("select count(*) from confidence_rounds").fetchone()[0] == 46
         assert (
             database.execute("select version_num from alembic_version").fetchone()[0]
-            == "0011_round_events"
+            == "0011"
         )
 
 
