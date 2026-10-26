@@ -7,6 +7,12 @@ target_metadata = Base.metadata
 
 
 def run_migrations() -> None:
+    supplied = context.config.attributes.get("connection")
+    if supplied is not None:
+        context.configure(connection=supplied, target_metadata=target_metadata)
+        with context.begin_transaction():
+            context.run_migrations()
+        return
     settings = get_settings()
     if context.is_offline_mode():
         context.configure(

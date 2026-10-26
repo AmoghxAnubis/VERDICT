@@ -40,7 +40,7 @@ class SourceProvenance(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
     protocol: Literal["chainlink", "pyth", "uniswap_v3"]
     instrument: str
-    verification: Literal["rpc_checked", "hermes_unverified"]
+    verification: Literal["rpc_checked", "hermes_unverified", "synthetic_fixture"]
     dependencies: tuple[str, ...]
     block: ChainBlock | None = None
     contract: Address | None = None
