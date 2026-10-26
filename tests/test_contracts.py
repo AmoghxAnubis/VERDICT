@@ -16,7 +16,7 @@ from eth_tester.exceptions import TransactionFailed
 from eth_utils import keccak, to_checksum_address
 
 from verdict.config import get_settings
-from verdict.contract_inputs import contract_inputs
+from verdict.contract_inputs import contract_inputs, registry_inputs
 from verdict.dashboard import seed_demo
 from verdict.evidence import build_bundle
 from verdict.signing import (
@@ -40,7 +40,7 @@ from verdict.storage import ObservationStore, build_engine
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACTS = ROOT / "contracts"
 BASE = datetime(2030, 1, 1, tzinfo=UTC)  # Frozen future fixture avoids host-clock mining jumps.
-OBSERVED = unix_seconds(BASE) + 290
+OBSERVED = unix_seconds(BASE) + 100
 DATASET = "replay:adv-synthetic-baseline"
 FIRST = Account.from_key(bytes.fromhex("11" * 32))  # Public local test keys only.
 SECOND = Account.from_key(bytes.fromhex("22" * 32))
@@ -150,11 +150,15 @@ def bundles(tmp_path_factory):
         try:
             store = ObservationStore(engine)
             seed_demo(store, ROOT / "benchmarks/adversarial-v1.json", case="baseline")
-            history = store.confidence_rounds(dataset=DATASET, limit=2)
+            history = {
+                unix_seconds(datetime.fromisoformat(row["cutoff"].replace("Z", "+00:00"))): row
+                for row in store.confidence_rounds(dataset=DATASET, limit=100)
+            }
             result = [
-                build_bundle(store, dataset=DATASET, assessment_id=row["report_id"])
-                for row in reversed(history)
+                build_bundle(store, dataset=DATASET, assessment_id=history[at]["report_id"])
+                for at in (OBSERVED, OBSERVED + 10)
             ]
+            assert history[OBSERVED]["candidate_value"] is not None
         finally:
             engine.dispose()
     get_settings.cache_clear()
@@ -313,7 +317,10 @@ def test_report_context_and_unavailable_schema_are_enforced(scenario, field, val
     s.initialize()
     s.warp(OBSERVED + 2)
     changed = {**s.report, field: value}
-    s.oracle.rejects("submit", changed, s.signature, error=error)
+    data = typed_data(s.policy.domain, s.signed.message)
+    data["message"] = changed
+    signature = "0x" + bytes(FIRST.sign_typed_data(full_message=data).signature).hex()
+    s.oracle.rejects("submit", changed, signature, error=error)
     assert s.oracle.call("lastRound") == (0,)
 
 

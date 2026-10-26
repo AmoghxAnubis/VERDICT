@@ -51,6 +51,12 @@ def add_commands(commands):
         "verify", help="Verify evidence, signature, authorization and expiry"
     )
     contract = actions.add_parser("contract-input", help="Export verified oracle ABI arguments")
+    registry_input = actions.add_parser(
+        "registry-input", help="Export trusted registry ABI arguments"
+    )
+    registry_input.add_argument("--policy", type=Path, required=True)
+    registry_input.add_argument("--registry", type=Path, required=True)
+    registry_input.add_argument("--registry-id", required=True)
     for command in (sign, verify, contract):
         command.add_argument("--bundle", type=Path, required=True)
         command.add_argument("--policy", type=Path, required=True)
@@ -69,7 +75,7 @@ def add_commands(commands):
         command.add_argument("--at", help="Verification time; defaults to now")
     typed = actions.add_parser("typed-data", help="Export the EIP-712 representation for tooling")
     typed.add_argument("--report", type=Path, required=True)
-    for command in (policy, key, initial, rotate, revoke, sign, typed, contract):
+    for command in (policy, key, initial, rotate, revoke, sign, typed, contract, registry_input):
         command.add_argument("--output", type=Path, required=True)
 
 
@@ -168,6 +174,15 @@ def run(args, parser):
                 "revision": result.revision,
                 "previous_registry_id": previous.registry_id,
             }
+        elif action == "registry-input":
+            from verdict.contract_inputs import registry_inputs
+
+            result = registry_inputs(
+                policy=load(ReportPolicy, args.policy),
+                registry=load(SignerRegistry, args.registry),
+                expected_registry_id=args.registry_id,
+            )
+            summary = {"registry_id": result["registry_id"], "output": str(args.output)}
         elif action == "typed-data":
             report = load(SignedDiagnosticReport, args.report)
             result = typed_data(report.domain, report.message)
