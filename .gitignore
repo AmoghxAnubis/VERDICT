@@ -21,3 +21,4 @@ frontend/.next-e2e/
 frontend/test-results/
 frontend/playwright-report/
 *.keystore.json
+contracts/node_modules/

@@ -29,7 +29,7 @@ dependencies = [
 verdict = "verdict.cli:main"
 
 [dependency-groups]
-dev = ["fakeredis>=2.31,<3", "pytest>=8.3,<10", "ruff>=0.11,<1"]
+dev = ["eth-tester[py-evm]==0.13.0b1", "fakeredis>=2.31,<3", "pytest>=8.3,<10", "ruff>=0.11,<1"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/verdict"]
