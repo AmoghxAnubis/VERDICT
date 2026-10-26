@@ -325,14 +325,19 @@ def run_local_demo(directory, source_profile, *, start=None):
             for row in stages
         ],
         "",
-        "All signed usable values/confidence remain unavailable/null. Candidates above are diagnostic only.",
-        "The shortened policies and synthetic dependency graph are test assumptions, not live calibration.",
+        "All signed usable values/confidence remain unavailable/null. "
+        "Candidates above are diagnostic only.",
+        "The shortened policies and synthetic dependency graph are test assumptions, "
+        "not live calibration.",
         "",
-        "Eight transactions passed preflight and receipt audits. Duplicate, changed-root, and expired",
+        "Eight transactions passed preflight and receipt audits. "
+        "Duplicate, changed-root, and expired",
         "submissions were rejected, and usable consumer reads reverted at every checkpoint.",
         "",
-        "`archive.json` inventories the database, complete evidence bundles, assessment proofs, signed",
-        "reports, unsigned plans, signed raw transactions, preflights, receipts, and audit records.",
+        "`archive.json` inventories the database, complete evidence bundles, "
+        "assessment proofs, signed",
+        "reports, unsigned plans, signed raw transactions, preflights, "
+        "receipts, and audit records.",
         "Retain its independently printed archive ID for `testnet demo-verify`.",
         "",
     ]
