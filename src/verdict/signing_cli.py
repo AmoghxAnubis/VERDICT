@@ -50,7 +50,8 @@ def add_commands(commands):
     verify = actions.add_parser(
         "verify", help="Verify evidence, signature, authorization and expiry"
     )
-    for command in (sign, verify):
+    contract = actions.add_parser("contract-input", help="Export verified oracle ABI arguments")
+    for command in (sign, verify, contract):
         command.add_argument("--bundle", type=Path, required=True)
         command.add_argument("--policy", type=Path, required=True)
         command.add_argument("--registry", type=Path, required=True)
@@ -60,14 +61,15 @@ def add_commands(commands):
         "--password-env", help="Environment variable name; never the passphrase itself"
     )
     sign.add_argument("--issued-at", help="Historical clock override for replay datasets only")
-    verify.add_argument("--report", type=Path, required=True)
-    verify.add_argument(
-        "--registry-id", required=True, help="Independently trusted CURRENT registry hash"
-    )
-    verify.add_argument("--at", help="Verification time; defaults to now")
+    for command in (verify, contract):
+        command.add_argument("--report", type=Path, required=True)
+        command.add_argument(
+            "--registry-id", required=True, help="Independently trusted CURRENT registry hash"
+        )
+        command.add_argument("--at", help="Verification time; defaults to now")
     typed = actions.add_parser("typed-data", help="Export the EIP-712 representation for tooling")
     typed.add_argument("--report", type=Path, required=True)
-    for command in (policy, key, initial, rotate, revoke, sign, typed):
+    for command in (policy, key, initial, rotate, revoke, sign, typed, contract):
         command.add_argument("--output", type=Path, required=True)
 
 
@@ -197,6 +199,28 @@ def run(args, parser):
             else:
                 report = load(SignedDiagnosticReport, args.report)
                 at = clock(args.at)
+                if action == "contract-input":
+                    from verdict.contract_inputs import contract_inputs
+
+                    result = contract_inputs(
+                        report,
+                        bundle=bundle,
+                        policy=policy,
+                        registry=registry,
+                        expected_registry_id=args.registry_id,
+                        now=at,
+                    )
+                    write_new_json(args.output, result)
+                    print(
+                        json.dumps(
+                            {
+                                "output": str(args.output),
+                                "digest": result["digest"],
+                                "publication_ready": False,
+                            }
+                        )
+                    )
+                    return
                 verified = verify_report(
                     report,
                     bundle=bundle,
