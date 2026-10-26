@@ -152,7 +152,7 @@ dependency evidence. A versioned typed byte codec, domain-separated SHA-256 tree
 count-bound roots, and inclusion proofs are implemented. Offline verification
 reproduces the pipeline; exports and proof files refuse overwrites. Existing SQL
 evidence is unchanged, and no retention expiry or publication path is added.
-Public testnet work remains pending.
+Public testnet deployment remains pending.
 See [encoding, proof rules, and retention limits](EVIDENCE.md).
 
 Offline EIP-712 diagnostic reports now bind the domain, dataset, evidence root,
@@ -187,7 +187,7 @@ audits are implemented. Gas/fee budgets, an eight-entry initial registry limit,
 wallet handoff, confirmations/finality, nonce/reorganization recovery, and retained
 artifacts are documented in the [testnet runbook](TESTNET_RUNBOOK.md). No automatic
 publisher or broadcaster is added. Public RPC compatibility, wallet execution,
-deployment hashes, and the timed manipulation/outage/recovery demonstration remain
+deployment hashes, and the public timed manipulation/outage/recovery demonstration remain
 unverified and belong to the next gate. Local preparation does not enable usable
 feed publication.
 
