@@ -13,6 +13,7 @@ dependencies = [
   "eth-abi>=5.2,<7",
   "eth-account>=0.13.7,<0.14",
   "eth-hash[pycryptodome]>=0.7,<1",
+  "eth-keys>=0.8,<0.9",
   "eth-utils>=5,<7",
   "fastapi>=0.115,<1",
   "httpx>=0.28,<1",
