@@ -59,6 +59,13 @@ V1 file and its checksum remain unchanged for archived runs. Initialization,
 consumer deployment, and submission defaults still require their own live
 preflights; their public execution costs have not been measured.
 
+The revised 16,700,000-gas oracle plan subsequently passed live Sepolia preflight:
+creation `eth_call`, the 14,970,098-gas estimate, the 10% margin, sender balance,
+latest/pending nonce equality, predicted-address vacancy, chain/genesis, and
+canonical head checks. It used a 1-gwei fee cap and 0.1-gwei priority cap, for a
+maximum 0.0167 test ETH gas cost. This was simulation only; no public transaction
+was signed or broadcast. The operator must rerun preflight before wallet signing.
+
 The 120-second limits concern signed diagnostic transport. They do not relax
 provider freshness, scoring, independence gates, or the evidence rules. V1 still
 signs unavailable results, with null usable value/confidence off chain and zero
