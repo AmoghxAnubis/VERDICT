@@ -272,6 +272,45 @@ def test_profile_pins_compiled_artifacts():
     assert checksum(load_artifact("FailClosedConsumer")) == p.consumer_artifact_id
 
 
+def test_legacy_profile_identity_and_budget_still_apply(chain):
+    legacy = NetworkProfile.model_validate_json(
+        DEFAULT_PROFILE.with_name("sepolia-v1.json").read_text(encoding="utf-8")
+    )
+    assert legacy.profile_id == "a9c05291e38ea7d29427394b871197bf41665d4b8f73fceae0c99e95a060d061"
+    plan = deployment_plan(
+        legacy,
+        operation="deploy-oracle",
+        sender=chain.sender,
+        administrator=chain.admin,
+        nonce=0,
+        now=chain.now,
+    )
+    assert plan.transaction.gas == 3_000_000
+    altered = rehash(plan, lambda p: p["transaction"].update(gas=8_000_001))
+    with pytest.raises(ValueError, match="gas or fee policy"):
+        validate_plan(altered, legacy)
+
+
+def test_measured_sepolia_deployment_cost_requires_full_margin(chain, monkeypatch):
+    original = chain.rpc.request
+
+    def request(method, params):
+        return hex(14_970_098) if method == "eth_estimateGas" else original(method, params)
+
+    monkeypatch.setattr(chain.rpc, "request", request)
+    plan = chain.deploy()
+    assert plan.transaction.gas == 16_700_000
+    assert chain.preflight(plan)["ready"]
+    too_small = rehash(plan, lambda p: p["transaction"].update(gas=16_400_000))
+    with pytest.raises(ValueError, match="margin"):
+        chain.preflight(too_small)
+
+
+def test_profile_requires_complete_bounded_operation_gas_limits():
+    with pytest.raises(ValueError, match="every operation"):
+        profile(gas_limits={"deploy-oracle": 16_700_000})
+
+
 @pytest.mark.parametrize(
     "changes",
     [
