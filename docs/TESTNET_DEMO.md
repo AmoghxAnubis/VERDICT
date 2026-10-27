@@ -158,3 +158,10 @@ eight audited transactions. Its independently printed archive ID is
 The ignored archive remains in the local workspace; generated databases and large
 evidence bundles are not committed. Public Sepolia RPC and wallet execution have
 not been performed.
+
+The full backend suite subsequently passed 671 checks with six optional
+PostgreSQL/Redis skips and the existing test-client deprecation warning. A live
+Sepolia gas probe then required the revised V2 gas profile: oracle code deposit
+needs an estimated 14,970,098 gas, rather than the local EVM estimate. The original
+V1 archive remains independently verifiable; V2 is the default for new runs.
+See the [measured gas correction](TESTNET_RUNBOOK.md).
