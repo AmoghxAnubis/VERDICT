@@ -35,5 +35,5 @@ See [Sepolia plans, read-only verification, and deployment runbook](../docs/TEST
 The [continuous local demonstration](../docs/TESTNET_DEMO.md) executes eight audited
 transactions across manipulation, outage, and recovery. Public deployment and
 the public testnet demonstration remain pending. The public profile
-limits initial snapshots to eight entries and transactions to eight million gas;
+limits initial snapshots to eight entries and transactions to 16.7 million gas;
 the 128-key local gas test does not establish a public-chain budget.
