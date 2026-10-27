@@ -184,5 +184,6 @@ carry source/lockfile fingerprints; CI recompiles and rejects any drift. Runtime
 bytecode is 9,383 bytes for the oracle and 1,457 for the consumer. The maximum
 registry snapshot fits the tested 25-million-gas initialization budget on a
 30-million-gas local block. This is not a supported public gas budget: the Sepolia
-profile limits initial snapshots to eight entries and transactions to eight
-million gas; public-chain costs remain unverified.
+revised profile limits initial snapshots to eight entries and transactions to
+16.7 million gas. Live Sepolia oracle creation estimated 14,970,098 gas;
+public execution and the other operation costs remain unverified.
