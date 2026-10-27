@@ -214,6 +214,10 @@ mismatch: the oracle needs an estimated 14,970,098 gas under current code-storag
 pricing. A new V2 profile supplies per-operation limits with a 16.7-million-gas
 ceiling and lower fee caps; V1 remains unchanged for archived evidence. Public
 deployment, wallet signing, and independent receipt verification remain pending.
+The revised oracle plan passed live read-only preflight with a 10% gas margin and
+a maximum 0.0167 test ETH cost at its selected 1-gwei fee cap. The affected
+preparation/demo checks passed after the profile correction, including legacy
+profile identity preservation and the measured gas-margin boundary.
 
 ## Later milestones
 
