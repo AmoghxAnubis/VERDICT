@@ -208,6 +208,13 @@ the demo has its own migrated database. See [demonstration commands and scope](T
 Local execution is complete; the Batch 5 public testnet gate remains open pending
 wallet/RPC setup, real transaction hashes, and independent chain verification.
 
+The full backend suite passed 671 tests with six optional service checks skipped.
+Subsequent live Sepolia reads verified the network/genesis and exposed a gas-policy
+mismatch: the oracle needs an estimated 14,970,098 gas under current code-storage
+pricing. A new V2 profile supplies per-operation limits with a 16.7-million-gas
+ceiling and lower fee caps; V1 remains unchanged for archived evidence. Public
+deployment, wallet signing, and independent receipt verification remain pending.
+
 ## Later milestones
 
 BTC/USD; operational hardening and observability; independently operated nodes;
