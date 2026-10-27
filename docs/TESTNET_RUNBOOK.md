@@ -1,7 +1,7 @@
 # Sepolia diagnostic deployment preparation
 
 The selected application testnet is **Sepolia**, chain ID **11155111**. The checked-in
-[profile](../contracts/networks/sepolia-v1.json), unsigned transaction planner,
+[profile](../contracts/networks/sepolia-v2.json), unsigned transaction planner,
 read-only RPC preflight, and receipt auditor are implemented. No public contract
 has been deployed or verified. A funded testnet transaction sender, administrator,
 RPC endpoint, approved wallet workflow, and public execution of the timed replay
@@ -18,7 +18,7 @@ Sources: [Ethereum networks](https://ethereum.org/developers/docs/networks/) and
 
 | Setting | Initial value |
 | --- | --- |
-| Profile version | `sepolia-diagnostic-v1` |
+| Profile version | `sepolia-diagnostic-v2` |
 | Dataset | `replay:testnet-demo-v1` |
 | Feed / signed output | ETH-USD / unavailable only |
 | Publication interval | 30 seconds, on Unix cutoffs divisible by 30 |
@@ -29,25 +29,35 @@ Sources: [Ethereum networks](https://ethereum.org/developers/docs/networks/) and
 | Plan review lifetime | Up to 300 seconds; shorter for report submissions |
 | Maximum provider head lag | 60 seconds; at most 5 seconds ahead |
 | Initial registry | At most 8 retained signer entries |
-| Transaction gas ceiling | 8,000,000 |
-| Total fee / priority fee ceilings | 20 gwei / 2 gwei |
+| Transaction gas ceiling | 16,700,000 |
+| Total fee / priority fee ceilings | 2 gwei / 0.1 gwei |
 | Worst-case transaction cost ceiling | 0.2 test ETH |
 
 Fee ceilings are operator limits, not current gas-price quotes or predicted costs.
-The planner's initial gas limits are 3,000,000 for the oracle, 500,000 for the
-consumer, 2,000,000 for initialization, and 750,000 for submission. Preflight
+The revised profile sets 16,700,000 gas for the oracle, 3,000,000 for the
+consumer, 8,000,000 for initialization, and 3,000,000 for submission. Preflight
 requires the network estimate plus a rounded-up 10% margin to fit the exact
 reviewed limit. If it does not fit, create and review a new plan within the profile
 ceilings. It never silently increases fees, gas, or nonces.
 
 Sepolia has activated upgrades after the compiler's Cancun target. In particular,
 the network's gas rules must be measured through its RPC; the local EVM is not
-evidence of public gas costs. EIP-7825 limits an individual transaction to
-16,777,216 gas. The earlier 128-key local test used a 25-million-gas budget and is
+evidence of public gas costs. EIP-8037 increases code-deposit/state costs and
+changes EIP-7825's 16,777,216-gas limit to apply to execution gas, with a separate
+total-gas ceiling. This profile conservatively caps total transaction gas at
+16,700,000. The earlier 128-key local test used a 25-million-gas budget and is
 **not** a supported public deployment configuration. This profile deliberately
-uses at most eight initial entries and an eight-million-gas ceiling. Sources:
+uses at most eight initial entries. Sources:
 [Sepolia upgrade announcement](https://blog.ethereum.org/en/2026/09/17/glamsterdam-testnet-announcement)
-and [EIP-7825](https://eips.ethereum.org/EIPS/eip-7825).
+and [EIP-8037 gas accounting](https://eips.ethereum.org/EIPS/eip-8037).
+
+On 27 October 2026 local time, the live Sepolia RPC rejected oracle creation at
+both 3,000,000 and 8,000,000 gas with code-storage out-of-gas. It estimated
+14,970,098 gas with a sufficiently high simulation limit; the required 10% margin
+is 16,467,108. V2 records the revised limits and lower fee ceilings. The original
+V1 file and its checksum remain unchanged for archived runs. Initialization,
+consumer deployment, and submission defaults still require their own live
+preflights; their public execution costs have not been measured.
 
 The 120-second limits concern signed diagnostic transport. They do not relax
 provider freshness, scoring, independence gates, or the evidence rules. V1 still
@@ -172,7 +182,7 @@ Wait for verified oracle deployment before binding the signing domain to its
 actual address. Create the public policy with the selected profile's exact values:
 
 ```powershell
-.venv/Scripts/verdict.exe signing policy --version sepolia-diagnostic-v1 --dataset replay:testnet-demo-v1 --chain-id 11155111 --verifying-contract ORACLE_ADDRESS --maximum-ttl 120 --maximum-age 120 --output .cache/sepolia/policy.json
+.venv/Scripts/verdict.exe signing policy --version sepolia-diagnostic-v2 --dataset replay:testnet-demo-v1 --chain-id 11155111 --verifying-contract ORACLE_ADDRESS --maximum-ttl 120 --maximum-age 120 --output .cache/sepolia/policy.json
 ```
 
 Create a fresh encrypted report keystore and genesis signer registry using the
