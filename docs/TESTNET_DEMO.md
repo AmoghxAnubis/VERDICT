@@ -156,8 +156,8 @@ On 26 October 2026, `.cache/testnet-demo/local-20261026-1` completed five phases
 eight audited transactions. Its independently printed archive ID is
 `eb0fa37a6a798b7a375769527a26aa48840b9defa9856e682d8b68a34f8b8915`.
 The ignored archive remains in the local workspace; generated databases and large
-evidence bundles are not committed. Public Sepolia RPC and wallet execution have
-not been performed.
+evidence bundles are not committed. At that point no public Sepolia RPC or wallet
+execution had been performed; subsequent read-only probes are described below.
 
 The full backend suite subsequently passed 671 checks with six optional
 PostgreSQL/Redis skips and the existing test-client deprecation warning. A live
@@ -165,3 +165,7 @@ Sepolia gas probe then required the revised V2 gas profile: oracle code deposit
 needs an estimated 14,970,098 gas, rather than the local EVM estimate. The original
 V1 archive remains independently verifiable; V2 is the default for new runs.
 See the [measured gas correction](TESTNET_RUNBOOK.md).
+After that correction, 84 affected preparation/demo checks and three new profile
+regressions passed. The original archived run also passed offline verification
+again. The revised oracle transaction then passed live Sepolia preflight, with
+no signing or broadcasting.
